@@ -47,7 +47,7 @@ Requirements: Python 3.12+.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.lock
+python -m pip install --require-hashes -r requirements.lock
 python -m ingestion.build_index --source sample-data --output .local/index.json
 PYTHONPATH=".:apps/rag-assistant" RAG_INDEX_PATH=.local/index.json \
   uvicorn secure_rag.api:app --host 127.0.0.1 --port 8000
