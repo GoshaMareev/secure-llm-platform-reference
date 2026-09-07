@@ -1,9 +1,9 @@
-# Secure LLM Platform Reference
+# Secure LLM Platform Portfolio
 
-A clean-room, runnable reference implementation of the controls that sit between an enterprise user and an LLM: retrieval, model routing, evaluation, operational telemetry, and a separate prompt-audit plane.
+A clean-room, runnable portfolio project showing how I design the controls between enterprise users and an LLM: identity, scoped retrieval, model routing, evaluation, operational telemetry, and a separate prompt-audit plane.
 
 > [!IMPORTANT]
-> This repository is authored as a public-safe reference. It contains no customer source code, data, infrastructure identifiers, credentials, logs, prompts, or screenshots. The architecture is distilled from production experience; it is not a copy of a customer deployment.
+> This public portfolio repository is authored as a clean-room reference. It contains no customer source code, data, infrastructure identifiers, credentials, logs, prompts, or screenshots. The architecture is distilled from production experience; it is not a copy of a customer deployment.
 
 ## What this demonstrates
 
@@ -63,7 +63,7 @@ curl -s http://127.0.0.1:8000/v1/ask \
 
 The default gateway is deterministic and offline. It makes the repository testable without downloading a model or sending data to a hosted API.
 
-## Run the reference stack
+## Run the portfolio stack
 
 ```bash
 cp .env.example .env
@@ -112,12 +112,20 @@ ingestion/                safe corpus loading, chunking, and index build
 evals/                    synthetic evaluation cases and runner
 observability/            Fluent Bit, Prometheus, and Loki configuration
 audit/                    audit event contract and handling guidance
-infra/                    local reference deployment
+infra/                    local protected deployment
 sample-data/              explicitly fictional documents
 docs/                     architecture, security model, and ADRs
 tests/                    offline unit tests
 ```
 
+## Roadmap
+
+- verify the full protected Compose flow against a disposable Microsoft Entra ID app registration;
+- derive retrieval scopes from trusted Entra group claims instead of accepting authorization scope from caller-provided filters;
+- add integration tests for proxy-header trust, request and response limits, audit failure paths, and log rotation;
+- generate an SBOM and dependency-license report, then repeat the security review against the hardened revision;
+- connect the repository to the portfolio site after the final public-content review.
+
 ## Scope and limitations
 
-This is a compact reference, not a production distribution. It includes an illustrative Entra/OAuth2 Proxy boundary, but still omits enterprise policy mapping, real SIEM destinations, customer schemas, proprietary prompts, production sizing, and deployment-specific network topology. See [NOTICE.md](NOTICE.md) for provenance and [SECURITY.md](SECURITY.md) for reporting guidance.
+This is a compact portfolio demonstration, not a production distribution. It includes an illustrative Entra/OAuth2 Proxy boundary, but still omits enterprise policy mapping, real SIEM destinations, customer schemas, proprietary prompts, production sizing, and deployment-specific network topology. See [NOTICE.md](NOTICE.md) for provenance and [SECURITY.md](SECURITY.md) for reporting guidance.
