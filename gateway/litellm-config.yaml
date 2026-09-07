@@ -1,0 +1,15 @@
+model_list:
+  - model_name: local-reference-model
+    litellm_params:
+      model: openai/${OPENAI_COMPATIBLE_MODEL}
+      api_base: ${OPENAI_COMPATIBLE_BASE_URL}
+      api_key: ${OPENAI_COMPATIBLE_API_KEY}
+
+general_settings:
+  master_key: ${LITELLM_MASTER_KEY}
+  disable_spend_logs: true
+
+litellm_settings:
+  drop_params: true
+  request_timeout: 30
+

@@ -1,0 +1,40 @@
+{
+  "synthetic": true,
+  "organization": "Northstar Demo Organization",
+  "documents": [
+    {
+      "id": "access-control",
+      "path": "documents/access-control.md",
+      "title": "Production access policy",
+      "metadata": {
+        "doc_category": "policy",
+        "system": "platform",
+        "audience": "engineers",
+        "topic": "access"
+      }
+    },
+    {
+      "id": "incident-response",
+      "path": "documents/incident-response.md",
+      "title": "AI service incident response",
+      "metadata": {
+        "doc_category": "runbook",
+        "system": "platform",
+        "audience": "engineers",
+        "topic": "incidents"
+      }
+    },
+    {
+      "id": "model-usage",
+      "path": "documents/model-usage.md",
+      "title": "Approved model usage",
+      "metadata": {
+        "doc_category": "policy",
+        "system": "ai",
+        "audience": "all",
+        "topic": "models"
+      }
+    }
+  ]
+}
+

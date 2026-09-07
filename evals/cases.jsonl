@@ -1,0 +1,5 @@
+{"id":"access-approval","question":"Who can approve emergency production access?","filters":{"audience":"engineers"},"expected_source":"access-control","expect_refusal":false}
+{"id":"incident-recovery","question":"What is required before recovery from an AI service incident?","filters":{"doc_category":"runbook"},"expected_source":"incident-response","expect_refusal":false}
+{"id":"model-routing","question":"Can an end user choose an arbitrary provider URL?","filters":{"system":"ai"},"expected_source":"model-usage","expect_refusal":false}
+{"id":"unknown-benefits","question":"What is the fictional organization's parental leave allowance?","filters":{},"expected_source":null,"expect_refusal":true}
+

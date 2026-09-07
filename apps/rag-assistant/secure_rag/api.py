@@ -1,0 +1,121 @@
+from __future__ import annotations
+
+import time
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Response
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from pydantic import BaseModel, Field
+
+from .audit import AuditWriter, OperationalEvent, OperationalLogger
+from .gateway import DemoGateway, OpenAICompatibleGateway
+from .retrieval import Retriever, load_glossary
+from .service import RAGService
+from .settings import Settings
+
+REQUESTS = Counter("rag_requests_total", "RAG API requests", ["status", "refused"])
+LATENCY = Histogram("rag_request_duration_seconds", "RAG request latency")
+
+
+class AskRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=4_000)
+    filters: dict[str, str] = Field(default_factory=dict)
+    actor_id: str = Field(default="anonymous", min_length=1, max_length=128)
+
+
+class AskResponse(BaseModel):
+    request_id: str
+    answer: str
+    confidence: float
+    refused: bool
+    citations: list[dict[str, str]]
+
+
+def build_app(settings: Settings | None = None) -> FastAPI:
+    config = settings or Settings.from_env()
+    glossary_path = Path("sample-data/glossary.json")
+    retriever = Retriever(config.index_path, glossary=load_glossary(glossary_path))
+    if config.gateway_mode == "demo":
+        gateway = DemoGateway()
+    elif config.gateway_mode == "openai-compatible":
+        gateway = OpenAICompatibleGateway(config.model_base_url, config.model_name, config.model_api_key)
+    else:
+        raise ValueError("RAG_GATEWAY_MODE must be demo or openai-compatible")
+
+    service = RAGService(retriever, gateway, min_confidence=config.min_confidence, top_k=config.top_k)
+    operations = OperationalLogger(config.runtime_log_path)
+    audit = AuditWriter(
+        config.audit_log_path,
+        pseudonym_salt=config.audit_pseudonym_salt,
+        include_prompt=config.audit_include_prompt,
+    )
+    app = FastAPI(title="Secure LLM Platform Reference", version="0.1.0")
+
+    @app.get("/healthz")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.get("/readyz")
+    def ready() -> dict[str, str]:
+        return {"status": "ready", "index": config.index_path.name}
+
+    @app.get("/metrics")
+    def metrics() -> Response:
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+    @app.post("/v1/ask", response_model=AskResponse)
+    def ask(payload: AskRequest) -> AskResponse:
+        request_id = str(uuid.uuid4())
+        started = time.perf_counter()
+        status = 200
+        retrieved_chunks = 0
+        refused = True
+        try:
+            answer = service.ask(payload.question, filters=payload.filters)
+            retrieved_chunks = len(answer.citations)
+            refused = answer.refused
+            audit.write(
+                request_id=request_id,
+                actor_id=payload.actor_id,
+                question=payload.question,
+                confidence=answer.confidence,
+                source_ids=[item["source_id"] for item in answer.citations],
+                refused=answer.refused,
+            )
+            REQUESTS.labels(status="success", refused=str(answer.refused).lower()).inc()
+            return AskResponse(
+                request_id=request_id,
+                answer=answer.text,
+                confidence=round(answer.confidence, 4),
+                refused=answer.refused,
+                citations=list(answer.citations),
+            )
+        except ValueError as error:
+            status = 400
+            REQUESTS.labels(status="invalid", refused="true").inc()
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except Exception as error:
+            status = 500
+            REQUESTS.labels(status="error", refused="true").inc()
+            raise HTTPException(status_code=500, detail="Request failed") from error
+        finally:
+            elapsed = time.perf_counter() - started
+            LATENCY.observe(elapsed)
+            operations.write(
+                OperationalEvent(
+                    timestamp=datetime.now(UTC).isoformat(),
+                    request_id=request_id,
+                    route="/v1/ask",
+                    status_code=status,
+                    latency_ms=round(elapsed * 1_000, 2),
+                    retrieved_chunks=retrieved_chunks,
+                    refused=refused,
+                )
+            )
+
+    return app
+
+
+app = build_app()
