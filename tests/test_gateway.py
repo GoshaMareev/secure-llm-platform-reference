@@ -19,6 +19,13 @@ class GatewayTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must be HTTP"):
             OpenAICompatibleGateway("file:///tmp/model", "model", "")
 
+    def test_remote_http_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "must be HTTP"):
+            OpenAICompatibleGateway("http://model.example.invalid/v1", "model", "")
+
+    def test_loopback_http_is_allowed_for_local_demo(self) -> None:
+        OpenAICompatibleGateway("http://127.0.0.1:4000/v1", "model", "")
+
 
 if __name__ == "__main__":
     unittest.main()

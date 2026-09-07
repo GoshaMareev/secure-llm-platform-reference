@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import threading
@@ -10,13 +11,18 @@ from pathlib import Path
 from typing import Any
 
 _WRITE_LOCK = threading.Lock()
+MAX_LOG_BYTES = 10 * 1024 * 1024
 
 
 def _append_json(path: Path, event: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
-    with os.fdopen(descriptor, "a", encoding="utf-8") as handle:
-        with _WRITE_LOCK:
+    with _WRITE_LOCK:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists() and path.stat().st_size >= MAX_LOG_BYTES:
+            rotated = path.with_name(f"{path.name}.1")
+            rotated.unlink(missing_ok=True)
+            path.replace(rotated)
+        descriptor = os.open(path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+        with os.fdopen(descriptor, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
 
 
@@ -59,11 +65,11 @@ class AuditWriter:
             "schema_version": 1,
             "timestamp": datetime.now(UTC).isoformat(),
             "request_id": request_id,
-            "actor_pseudonym": hashlib.sha256(self._salt + actor_id.encode()).hexdigest(),
-            "prompt_sha256": hashlib.sha256(question.encode()).hexdigest(),
+            "actor_pseudonym": hmac.new(self._salt, actor_id.encode(), hashlib.sha256).hexdigest(),
+            "prompt_sha256": hmac.new(self._salt, question.encode(), hashlib.sha256).hexdigest(),
             "prompt_characters": len(question),
             "confidence": round(confidence, 4),
-            "source_ids": source_ids,
+            "source_ids": list(dict.fromkeys(source_ids)),
             "refused": refused,
         }
         if self._include_prompt:

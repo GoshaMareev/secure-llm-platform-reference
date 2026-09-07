@@ -12,6 +12,8 @@
 
 | Boundary | Untrusted input | Enforced control |
 | --- | --- | --- |
+| user → OAuth2 Proxy | Entra ID authorization response | OIDC token validation, tenant issuer, optional allowed group |
+| OAuth2 Proxy → API | forwarded identity headers | Compose keeps API off the host and API requires `X-Forwarded-User` |
 | caller → API | question, actor ID, metadata filters | size limits and typed request schema |
 | API → retrieval | filter keys and values | exact metadata matching before ranking |
 | retrieval → gateway | question and selected context | confidence gate and fixed operator configuration |
@@ -25,7 +27,7 @@
 
 An authenticated caller attempts to retrieve documents for another audience or system. The reference applies metadata filters before scoring, so excluded chunks cannot be recovered through ranking.
 
-Production deployments must derive allowed filters from authenticated identity and policy. This demo accepts filters from the caller and therefore demonstrates retrieval behavior, not authorization.
+Direct local mode intentionally omits authentication. The Compose deployment adds an OAuth2 Proxy front door using Microsoft Entra ID OIDC and requires the trusted `X-Forwarded-User` header at the RAG API. The example can restrict access to an Entra security group, but production deployments must validate proxy-header provenance and derive document authorization from authenticated claims rather than caller-supplied filters. This demo still accepts filters from the caller and therefore demonstrates retrieval behavior, not document authorization.
 
 ### Prompt leakage through logs
 
@@ -41,7 +43,7 @@ A question has weak retrieval support. The confidence gate returns a refusal bef
 
 ## Explicit limitations
 
-- no authentication or authorization service is included;
+- direct local mode has no authentication; Compose includes the OAuth2 Proxy/Entra ID boundary;
 - metadata filters are caller-provided in the demo;
 - the deterministic vectorizer is for offline verification, not semantic quality;
 - audit transport to SIEM is documented but intentionally not implemented;
@@ -52,4 +54,3 @@ A question has weak retrieval support. The confidence gate returns a refusal bef
 ## Secure production requirements
 
 Before production use, add identity-derived authorization, encrypted audit transport, credential management, retention controls, rate limits, integrity-protected audit storage, dependency scanning, signed images, and deployment-specific threat modeling.
-

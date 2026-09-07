@@ -11,6 +11,7 @@ A clean-room, runnable reference implementation of the controls that sit between
 - glossary expansion, reranking, and a fallback when reranking reduces query coverage;
 - confidence-based grounded refusal and source attribution;
 - an explicit gateway boundary with a safe offline demo backend;
+- an OAuth2 Proxy front door for Microsoft Entra ID (OIDC) with optional group authorization;
 - operational logs that never contain prompts or answers;
 - a separate, opt-in prompt-audit stream with hashed actor identifiers;
 - repeatable evaluation against a synthetic corpus;
@@ -20,7 +21,8 @@ A clean-room, runnable reference implementation of the controls that sit between
 
 ```mermaid
 flowchart LR
-    U[Enterprise user] --> API[RAG assistant API]
+    U[Enterprise user] --> AUTH[OAuth2 Proxy + Entra ID]
+    AUTH --> API[RAG assistant API]
     API --> R[Hybrid retrieval]
     R --> IDX[(Synthetic index)]
     API --> G[Model gateway boundary]
@@ -65,14 +67,17 @@ The default gateway is deterministic and offline. It makes the repository testab
 
 ```bash
 cp .env.example .env
+# Fill Entra/OAuth2 Proxy values in .env before starting the protected stack.
 docker compose -f infra/docker-compose.yml up --build
 ```
 
-- RAG API: <http://127.0.0.1:8000/docs>
+- Authenticated entrypoint: <http://127.0.0.1:4180>
 - Prometheus: <http://127.0.0.1:9090>
 - Loki readiness: <http://127.0.0.1:3100/ready>
 
-The Compose stack binds published ports to loopback. It does not start an external model by default.
+The Compose stack binds published ports to loopback. The RAG API has no host port and requires the `X-Forwarded-User` header from OAuth2 Proxy. OAuth2 Proxy validates Microsoft Entra ID tokens and can restrict access with `ENTRA_ALLOWED_GROUP_ID`. The stack does not start an external model by default.
+
+For Entra setup, register a single-tenant web application with redirect URI `http://127.0.0.1:4180/oauth2/callback`, create a client secret, and grant the OAuth2 Proxy app access to the selected security group. See the [OAuth2 Proxy Microsoft Entra ID documentation](https://oauth2-proxy.github.io/oauth2-proxy/configuration/providers/ms_entra_id/).
 
 ## Evaluation
 
@@ -115,4 +120,4 @@ tests/                    offline unit tests
 
 ## Scope and limitations
 
-This is a compact reference, not a production distribution. It intentionally omits enterprise identity integration, real SIEM destinations, customer schemas, proprietary prompts, production sizing, and deployment-specific network topology. See [NOTICE.md](NOTICE.md) for provenance and [SECURITY.md](SECURITY.md) for reporting guidance.
+This is a compact reference, not a production distribution. It includes an illustrative Entra/OAuth2 Proxy boundary, but still omits enterprise policy mapping, real SIEM destinations, customer schemas, proprietary prompts, production sizing, and deployment-specific network topology. See [NOTICE.md](NOTICE.md) for provenance and [SECURITY.md](SECURITY.md) for reporting guidance.

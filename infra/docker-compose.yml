@@ -1,6 +1,42 @@
 name: secure-llm-platform-reference
 
 services:
+  oauth2-proxy:
+    image: ${OAUTH2_PROXY_IMAGE:-quay.io/oauth2-proxy/oauth2-proxy:v7.15.2@sha256:aa0bd8dd5ab0c78e4c91c92755ad573a5f92241f88138b4141b8ec803463b4fd}
+    environment:
+      OAUTH2_PROXY_PROVIDER: entra-id
+      OAUTH2_PROXY_OIDC_ISSUER_URL: https://login.microsoftonline.com/${ENTRA_TENANT_ID:-common}/v2.0
+      OAUTH2_PROXY_CLIENT_ID: ${OAUTH2_PROXY_CLIENT_ID:-}
+      OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET:-}
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:-}
+      OAUTH2_PROXY_REDIRECT_URL: ${OAUTH2_PROXY_REDIRECT_URL:-http://127.0.0.1:4180/oauth2/callback}
+      OAUTH2_PROXY_UPSTREAMS: http://rag-assistant:8000
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_EMAIL_DOMAINS: ${OAUTH2_PROXY_EMAIL_DOMAINS:-*}
+      # Deny by default until a real Entra security-group ID is supplied.
+      OAUTH2_PROXY_ALLOWED_GROUPS: ${ENTRA_ALLOWED_GROUP_ID:-00000000-0000-0000-0000-000000000000}
+      OAUTH2_PROXY_SCOPE: openid profile email
+      OAUTH2_PROXY_PASS_USER_HEADERS: "true"
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_COOKIE_SECURE: ${OAUTH2_PROXY_COOKIE_SECURE:-false}
+      OAUTH2_PROXY_COOKIE_SAMESITE: lax
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      OAUTH2_PROXY_STANDARD_LOGGING: "true"
+      OAUTH2_PROXY_AUTH_LOGGING: "true"
+      OAUTH2_PROXY_REQUEST_LOGGING: "true"
+    ports:
+      - "127.0.0.1:4180:4180"
+    depends_on:
+      rag-assistant:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    networks: [platform]
+
   rag-assistant:
     build:
       context: ..
@@ -13,12 +49,11 @@ services:
       RUNTIME_LOG_PATH: /var/log/reference/runtime/runtime.jsonl
       AUDIT_LOG_PATH: /var/log/reference/audit/audit.jsonl
       AUDIT_INCLUDE_PROMPT: ${AUDIT_INCLUDE_PROMPT:-false}
-      AUDIT_PSEUDONYM_SALT: ${AUDIT_PSEUDONYM_SALT:-local-demo-only}
+      AUDIT_PSEUDONYM_SALT: ${AUDIT_PSEUDONYM_SALT:-}
+      REQUIRE_AUTH_HEADER: "true"
       OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-http://host.docker.internal:4000/v1}
       OPENAI_COMPATIBLE_MODEL: ${OPENAI_COMPATIBLE_MODEL:-local-model}
       OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
-    ports:
-      - "127.0.0.1:8000:8000"
     volumes:
       - runtime-logs:/var/log/reference/runtime
       - audit-spool:/var/log/reference/audit
@@ -36,7 +71,7 @@ services:
     networks: [platform]
 
   fluent-bit:
-    image: ${FLUENT_BIT_IMAGE:-fluent/fluent-bit:3.1.9}
+    image: ${FLUENT_BIT_IMAGE:-fluent/fluent-bit:3.1.9@sha256:4af3920cc2ff976200e0fc09f23e7ca4ee7d4477a6d592cb496fc39378181b02}
     command: ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
     depends_on:
       loki:
@@ -57,7 +92,7 @@ services:
     networks: [platform]
 
   loki:
-    image: ${LOKI_IMAGE:-grafana/loki:3.1.1}
+    image: ${LOKI_IMAGE:-grafana/loki:3.1.1@sha256:e689cc634841c937de4d7ea6157f17e29cf257d6a320f1c293ab18d46cfea986}
     command: ["-config.file=/etc/loki/config.yaml"]
     ports:
       - "127.0.0.1:3100:3100"
@@ -70,7 +105,7 @@ services:
     networks: [platform]
 
   prometheus:
-    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v2.54.1}
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v2.54.1@sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94}
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -96,4 +131,3 @@ volumes:
   fluent-state:
   loki-data:
   prometheus-data:
-

@@ -34,6 +34,25 @@ class AuditTests(unittest.TestCase):
             self.assertNotIn("fictional-user", json.dumps(event))
             self.assertEqual(event["prompt_characters"], len("Synthetic private question"))
 
+    def test_audit_hashes_are_keyed_and_sources_are_unique(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            first = Path(directory) / "first.jsonl"
+            second = Path(directory) / "second.jsonl"
+            kwargs = dict(
+                request_id="request-1",
+                actor_id="fictional-user",
+                question="Synthetic private question",
+                confidence=0.5,
+                source_ids=["access-control", "access-control"],
+                refused=False,
+            )
+            AuditWriter(first, pseudonym_salt="a" * 32).write(**kwargs)
+            AuditWriter(second, pseudonym_salt="b" * 32).write(**kwargs)
+            first_event = json.loads(first.read_text(encoding="utf-8"))
+            second_event = json.loads(second.read_text(encoding="utf-8"))
+            self.assertNotEqual(first_event["prompt_sha256"], second_event["prompt_sha256"])
+            self.assertEqual(first_event["source_ids"], ["access-control"])
+
     def test_operational_log_contains_metadata_only(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "runtime.jsonl"

@@ -8,6 +8,9 @@ from urllib.request import Request, urlopen
 
 from .retrieval import SearchResult
 
+MAX_RESPONSE_BYTES = 1_000_000
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
 
 class ModelGateway(Protocol):
     def answer(self, question: str, context: list[SearchResult]) -> str: ...
@@ -40,6 +43,7 @@ class OpenAICompatibleGateway:
             or not parsed.hostname
             or parsed.username is not None
             or parsed.password is not None
+            or (parsed.scheme != "https" and parsed.hostname.casefold() not in LOOPBACK_HOSTS)
         )
         if invalid:
             raise ValueError(
@@ -74,5 +78,11 @@ class OpenAICompatibleGateway:
             method="POST",
         )
         with urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310 - operator-controlled URL
-            body = json.load(response)
+            content_length = response.headers.get("Content-Length")
+            if content_length and int(content_length) > MAX_RESPONSE_BYTES:
+                raise ValueError("Model response exceeds the configured size limit")
+            raw_body = response.read(MAX_RESPONSE_BYTES + 1)
+            if len(raw_body) > MAX_RESPONSE_BYTES:
+                raise ValueError("Model response exceeds the configured size limit")
+            body = json.loads(raw_body)
         return str(body["choices"][0]["message"]["content"])

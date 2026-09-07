@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -9,7 +9,7 @@ WORKDIR /app
 RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --no-create-home app
 
 COPY requirements.lock ./
-RUN pip install --no-cache-dir --requirement requirements.lock
+RUN pip install --no-cache-dir --require-hashes --requirement requirements.lock
 
 COPY ingestion ./ingestion
 COPY gateway ./gateway

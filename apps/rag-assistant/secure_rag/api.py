@@ -5,9 +5,10 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .audit import AuditWriter, OperationalEvent, OperationalLogger
 from .gateway import DemoGateway, OpenAICompatibleGateway
@@ -23,6 +24,16 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=4_000)
     filters: dict[str, str] = Field(default_factory=dict)
     actor_id: str = Field(default="anonymous", min_length=1, max_length=128)
+
+    @field_validator("filters")
+    @classmethod
+    def validate_filters(cls, filters: dict[str, str]) -> dict[str, str]:
+        if len(filters) > 8:
+            raise ValueError("at most 8 filters are allowed")
+        for key, value in filters.items():
+            if not 1 <= len(key) <= 64 or not 1 <= len(value) <= 128:
+                raise ValueError("filter keys and values have bounded lengths")
+        return filters
 
 
 class AskResponse(BaseModel):
@@ -53,6 +64,13 @@ def build_app(settings: Settings | None = None) -> FastAPI:
     )
     app = FastAPI(title="Secure LLM Platform Reference", version="0.1.0")
 
+    @app.middleware("http")
+    async def limit_request_body(request: Request, call_next):
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > 64 * 1024:
+            return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+        return await call_next(request)
+
     @app.get("/healthz")
     def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -66,24 +84,30 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     @app.post("/v1/ask", response_model=AskResponse)
-    def ask(payload: AskRequest) -> AskResponse:
+    def ask(payload: AskRequest, request: Request) -> AskResponse:
         request_id = str(uuid.uuid4())
         started = time.perf_counter()
         status = 200
         retrieved_chunks = 0
         refused = True
+        audit_written = False
+        actor_id = request.headers.get("x-forwarded-user") or payload.actor_id
         try:
+            if config.require_auth_header and not request.headers.get("x-forwarded-user"):
+                status = 401
+                raise HTTPException(status_code=401, detail="Authenticated proxy header required")
             answer = service.ask(payload.question, filters=payload.filters)
             retrieved_chunks = len(answer.citations)
             refused = answer.refused
             audit.write(
                 request_id=request_id,
-                actor_id=payload.actor_id,
+                actor_id=actor_id,
                 question=payload.question,
                 confidence=answer.confidence,
                 source_ids=[item["source_id"] for item in answer.citations],
                 refused=answer.refused,
             )
+            audit_written = True
             REQUESTS.labels(status="success", refused=str(answer.refused).lower()).inc()
             return AskResponse(
                 request_id=request_id,
@@ -92,6 +116,9 @@ def build_app(settings: Settings | None = None) -> FastAPI:
                 refused=answer.refused,
                 citations=list(answer.citations),
             )
+        except HTTPException:
+            REQUESTS.labels(status="unauthorized", refused="true").inc()
+            raise
         except ValueError as error:
             status = 400
             REQUESTS.labels(status="invalid", refused="true").inc()
@@ -101,6 +128,18 @@ def build_app(settings: Settings | None = None) -> FastAPI:
             REQUESTS.labels(status="error", refused="true").inc()
             raise HTTPException(status_code=500, detail="Request failed") from error
         finally:
+            if not audit_written:
+                try:
+                    audit.write(
+                        request_id=request_id,
+                        actor_id=actor_id,
+                        question=payload.question,
+                        confidence=0.0,
+                        source_ids=[],
+                        refused=True,
+                    )
+                except Exception:
+                    REQUESTS.labels(status="audit_error", refused="true").inc()
             elapsed = time.perf_counter() - started
             LATENCY.observe(elapsed)
             operations.write(

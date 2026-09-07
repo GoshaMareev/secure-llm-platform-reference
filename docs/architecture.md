@@ -6,25 +6,27 @@ This repository shows the minimum useful slice of a secure enterprise LLM platfo
 
 ## Request path
 
-1. The API validates the question length, actor identifier, and metadata filters.
-2. Retrieval applies exact metadata scope before ranking.
-3. Query terms are expanded through a public synthetic glossary.
-4. Hybrid ranking combines deterministic vector similarity and lexical overlap.
-5. A reranked result is accepted only when it does not materially reduce query-term coverage.
-6. Confidence below the configured threshold produces a grounded refusal.
-7. Accepted context crosses the model-gateway boundary.
-8. The response returns explicit source identifiers.
+1. In Compose, OAuth2 Proxy authenticates the caller with Microsoft Entra ID and forwards a trusted user header.
+2. The API validates the question, authenticated actor header, and bounded metadata filters.
+3. Retrieval applies exact metadata scope before ranking.
+4. Query terms are expanded through a public synthetic glossary.
+5. Hybrid ranking combines deterministic vector similarity and lexical overlap.
+6. A reranked result is accepted only when it does not materially reduce query-term coverage.
+7. Confidence below the configured threshold produces a grounded refusal.
+8. Accepted context crosses the model-gateway boundary.
+9. The response returns explicit source identifiers.
 
 ## Data flows
 
 ```mermaid
 flowchart TB
     subgraph UserZone[User zone]
-      User[API caller]
+      User[Enterprise user]
     end
 
     subgraph AppZone[Application plane]
       API[Validated API]
+      Auth[OAuth2 Proxy + Entra ID]
       Scope[Metadata scope]
       Rank[Hybrid rank + fallback]
       Gate[Confidence gate]
@@ -45,7 +47,7 @@ flowchart TB
       FutureSIEM[Enterprise SIEM adapter]
     end
 
-    User --> API --> Scope --> Rank --> Gate --> Gateway
+    User --> Auth --> API --> Scope --> Rank --> Gate --> Gateway
     Scope --> Index
     API --> Runtime --> Fluent --> Loki
     API --> Metrics --> Prometheus
@@ -70,4 +72,3 @@ This protects against accidental prompt leakage into general observability. It d
 | demo gateway | LiteLLM backed by approved local or compatible inference |
 | JSONL audit spool | authenticated, encrypted SIEM transport |
 | synthetic catalog | versioned enterprise content connector |
-
