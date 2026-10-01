@@ -32,7 +32,7 @@ jobs:
       - name: Build synthetic index and run evaluations
         run: |
           python -m ingestion.build_index --source sample-data --output .local/index.json
-          PYTHONPATH=".:apps/rag-assistant" python evals/run.py --index .local/index.json --cases evals/cases.jsonl
+          PYTHONPATH=".:apps/rag-assistant" python evals/run.py --index .local/index.json --cases evals/cases.jsonl --compare --quiet
 
       - name: Check publication safety
         run: python scripts/pre_publication_check.py

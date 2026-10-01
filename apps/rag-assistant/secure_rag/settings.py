@@ -25,6 +25,7 @@ class Settings:
     model_name: str
     model_api_key: str
     require_auth_header: bool
+    guardrails_enabled: bool = True
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -65,4 +66,5 @@ class Settings:
             model_name=os.getenv("OPENAI_COMPATIBLE_MODEL", "local-model"),
             model_api_key=os.getenv("OPENAI_COMPATIBLE_API_KEY", ""),
             require_auth_header=_bool_env("REQUIRE_AUTH_HEADER"),
+            guardrails_enabled=_bool_env("GUARDRAILS_ENABLED", default=True),
         )

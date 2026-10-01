@@ -7,7 +7,8 @@ test:
 	python -m unittest discover -s tests -v
 
 eval: index
-	PYTHONPATH=".:apps/rag-assistant" python evals/run.py --index .local/index.json --cases evals/cases.jsonl
+	PYTHONPATH=".:apps/rag-assistant" python evals/run.py --index .local/index.json --cases evals/cases.jsonl \
+		--compare --report evals/report.md
 
 publication-check:
 	python scripts/pre_publication_check.py

@@ -35,6 +35,8 @@ class OperationalEvent:
     latency_ms: float
     retrieved_chunks: int
     refused: bool
+    # Stable control identifiers such as "input_injection_blocked"; never content.
+    policy_verdicts: tuple[str, ...] = ()
 
 
 class OperationalLogger:
@@ -60,6 +62,7 @@ class AuditWriter:
         confidence: float,
         source_ids: list[str],
         refused: bool,
+        policy_verdicts: tuple[str, ...] = (),
     ) -> None:
         event: dict[str, Any] = {
             "schema_version": 1,
@@ -71,6 +74,7 @@ class AuditWriter:
             "confidence": round(confidence, 4),
             "source_ids": list(dict.fromkeys(source_ids)),
             "refused": refused,
+            "policy_verdicts": list(policy_verdicts),
         }
         if self._include_prompt:
             event["prompt"] = question

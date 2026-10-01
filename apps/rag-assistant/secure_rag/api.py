@@ -12,12 +12,14 @@ from pydantic import BaseModel, Field, field_validator
 
 from .audit import AuditWriter, OperationalEvent, OperationalLogger
 from .gateway import DemoGateway, OpenAICompatibleGateway
+from .guardrails import Guardrails
 from .retrieval import Retriever, load_glossary
 from .service import RAGService
 from .settings import Settings
 
 REQUESTS = Counter("rag_requests_total", "RAG API requests", ["status", "refused"])
 LATENCY = Histogram("rag_request_duration_seconds", "RAG request latency")
+POLICY_VERDICTS = Counter("rag_policy_verdicts_total", "Guardrail verdicts by control", ["verdict"])
 
 
 class AskRequest(BaseModel):
@@ -41,21 +43,29 @@ class AskResponse(BaseModel):
     answer: str
     confidence: float
     refused: bool
+    blocked: bool
+    policy_verdicts: list[str]
     citations: list[dict[str, str]]
 
 
 def build_app(settings: Settings | None = None) -> FastAPI:
     config = settings or Settings.from_env()
-    glossary_path = Path("sample-data/glossary.json")
-    retriever = Retriever(config.index_path, glossary=load_glossary(glossary_path))
+    glossary = load_glossary(Path("sample-data/glossary.json"))
+    retriever = Retriever(config.index_path, glossary=glossary)
     if config.gateway_mode == "demo":
-        gateway = DemoGateway()
+        gateway = DemoGateway(glossary)
     elif config.gateway_mode == "openai-compatible":
         gateway = OpenAICompatibleGateway(config.model_base_url, config.model_name, config.model_api_key)
     else:
         raise ValueError("RAG_GATEWAY_MODE must be demo or openai-compatible")
 
-    service = RAGService(retriever, gateway, min_confidence=config.min_confidence, top_k=config.top_k)
+    service = RAGService(
+        retriever,
+        gateway,
+        min_confidence=config.min_confidence,
+        top_k=config.top_k,
+        guardrails=Guardrails() if config.guardrails_enabled else None,
+    )
     operations = OperationalLogger(config.runtime_log_path)
     audit = AuditWriter(
         config.audit_log_path,
@@ -90,6 +100,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         status = 200
         retrieved_chunks = 0
         refused = True
+        verdicts: tuple[str, ...] = ()
         audit_written = False
         actor_id = request.headers.get("x-forwarded-user") or payload.actor_id
         try:
@@ -99,6 +110,9 @@ def build_app(settings: Settings | None = None) -> FastAPI:
             answer = service.ask(payload.question, filters=payload.filters)
             retrieved_chunks = len(answer.citations)
             refused = answer.refused
+            verdicts = answer.policy_verdicts
+            for verdict in verdicts:
+                POLICY_VERDICTS.labels(verdict=verdict).inc()
             audit.write(
                 request_id=request_id,
                 actor_id=actor_id,
@@ -106,6 +120,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
                 confidence=answer.confidence,
                 source_ids=[item["source_id"] for item in answer.citations],
                 refused=answer.refused,
+                policy_verdicts=verdicts,
             )
             audit_written = True
             REQUESTS.labels(status="success", refused=str(answer.refused).lower()).inc()
@@ -114,6 +129,8 @@ def build_app(settings: Settings | None = None) -> FastAPI:
                 answer=answer.text,
                 confidence=round(answer.confidence, 4),
                 refused=answer.refused,
+                blocked=answer.blocked,
+                policy_verdicts=list(verdicts),
                 citations=list(answer.citations),
             )
         except HTTPException:
@@ -151,6 +168,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
                     latency_ms=round(elapsed * 1_000, 2),
                     retrieved_chunks=retrieved_chunks,
                     refused=refused,
+                    policy_verdicts=verdicts,
                 )
             )
 

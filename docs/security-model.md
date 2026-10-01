@@ -14,9 +14,10 @@
 | --- | --- | --- |
 | user → OAuth2 Proxy | Entra ID authorization response | OIDC token validation, tenant issuer, optional allowed group |
 | OAuth2 Proxy → API | forwarded identity headers | Compose keeps API off the host and API requires `X-Forwarded-User` |
-| caller → API | question, actor ID, metadata filters | size limits and typed request schema |
+| caller → API | question, actor ID, metadata filters | size limits, typed request schema, injection block, PII redaction |
 | API → retrieval | filter keys and values | exact metadata matching before ranking |
-| retrieval → gateway | question and selected context | confidence gate and fixed operator configuration |
+| retrieval → gateway | question and selected context | context quarantine, confidence gate and fixed operator configuration |
+| gateway → caller | model answer | prompt-echo and relayed-instruction block, PII redaction |
 | application → operations | runtime event | schema omits prompt and answer fields |
 | application → audit | audit event | separate path, volume, schema, and opt-in raw prompt |
 | operator → model endpoint | base URL and credential | environment-only configuration; URL validation |
@@ -37,6 +38,18 @@ A maintainer with ordinary observability access attempts to recover prompt text.
 
 A caller attempts to provide a model URL or credential. The API schema has no such fields. Gateway configuration is loaded only from the operator environment.
 
+### Direct prompt injection
+
+A caller asks the assistant to ignore its rules, reveal its system prompt, or switch persona, possibly with zero-width or full-width characters. The input checkpoint normalizes the text and blocks the request before retrieval, so the refusal reveals nothing about the corpus.
+
+### Indirect prompt injection
+
+An external document in the corpus contains instructions addressed to the model or the reader, such as a fake `SYSTEM:` line asking users to send their API token. The synthetic `vendor-integration-notes` document plays this role. Retrieved chunks that match injection or exfiltration rules are quarantined before generation and are not cited.
+
+### Personal data in prompts and answers
+
+A caller pastes contact or payment details, or a retrieved document contains them. E-mail addresses, Luhn-valid card numbers and phone numbers are replaced with typed placeholders before the question reaches retrieval and the model, and again in the answer.
+
 ### Unsupported answer
 
 A question has weak retrieval support. The confidence gate returns a refusal before model generation.
@@ -48,7 +61,8 @@ A question has weak retrieval support. The confidence gate returns a refusal bef
 - the deterministic vectorizer is for offline verification, not semantic quality;
 - audit transport to SIEM is documented but intentionally not implemented;
 - local JSONL files are not a tamper-evident audit store;
-- no PII classifier, DLP service, malware scanner, or prompt-injection classifier is bundled;
+- guardrails are deterministic pattern rules (ADR 0004): they cover common phrasings and obfuscations and are bypassable by paraphrase or other languages; no trained prompt-injection classifier, DLP service or malware scanner is bundled;
+- PII redaction covers e-mail, payment card and phone formats only;
 - Docker Compose demonstrates boundaries but is not a production orchestrator.
 
 ## Secure production requirements

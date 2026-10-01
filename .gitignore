@@ -20,3 +20,4 @@ state-*/
 htmlcov/
 dist/
 build/
+evals/report.md

@@ -8,13 +8,16 @@ This repository shows the minimum useful slice of a secure enterprise LLM platfo
 
 1. In Compose, OAuth2 Proxy authenticates the caller with Microsoft Entra ID and forwards a trusted user header.
 2. The API validates the question, authenticated actor header, and bounded metadata filters.
-3. Retrieval applies exact metadata scope before ranking.
-4. Query terms are expanded through a public synthetic glossary.
-5. Hybrid ranking combines deterministic vector similarity and lexical overlap.
-6. A reranked result is accepted only when it does not materially reduce query-term coverage.
-7. Confidence below the configured threshold produces a grounded refusal.
-8. Accepted context crosses the model-gateway boundary.
-9. The response returns explicit source identifiers.
+3. The input guardrail blocks injection attempts and redacts personal data.
+4. Retrieval applies exact metadata scope before ranking.
+5. Query terms are expanded through a public synthetic glossary.
+6. Hybrid ranking combines deterministic vector similarity and lexical overlap.
+7. A reranked result is accepted only when it does not materially reduce query-term coverage.
+8. The context guardrail quarantines retrieved chunks that contain instructions or exfiltration requests.
+9. Confidence below the configured threshold, computed on the remaining context, produces a grounded refusal.
+10. Accepted context crosses the model-gateway boundary.
+11. The output guardrail blocks prompt echo and relayed instructions and redacts personal data.
+12. The response returns explicit source identifiers and the policy verdicts that fired.
 
 ## Data flows
 
