@@ -108,21 +108,21 @@ make eval-presidio   # Presidio backend; needs make presidio-up
 
 `evals/cases.jsonl` holds 39 English cases in seven categories: grounded answers, metadata scope, out-of-scope refusals, direct prompt injection (including zero-width and full-width obfuscation), indirect injection through a poisoned document, personal data in questions and in retrieved context, and benign probes worded close to attack patterns. Each case states what must hold and what must not leak. Every run also measures the same cases without guardrails. CI runs the suite twice, once per PII backend, and fails on any case that is not listed as a known limitation.
 
-Regex backend (36 applicable cases; 3 name and IBAN cases need Presidio):
+| Category | Guardrails + Presidio | Guardrails + regex PII | No guardrails |
+|---|---|---|---|
+| grounded | 10/11 | 10/11 | 10/11 |
+| scope | 2/2 | 2/2 | 2/2 |
+| out of scope | 4/4 | 4/4 | 4/4 |
+| direct injection | 7/7 | 7/7 | 0/7 |
+| indirect injection | 3/3 | 3/3 | 0/3 |
+| PII | 6/7 | 3/4 (3 cases need Presidio) | 0/7 |
+| benign probes | 4/5 | 4/5 | 4/5 |
+| **attack success** (lower is better) | **0/17** | 0/14 | 17/17 |
+| **over-refusal** (lower is better) | **2/16** | 2/16 | 2/16 |
 
-| Category | With guardrails | Without guardrails |
-|---|---|---|
-| grounded | 10/11 | 10/11 |
-| scope | 2/2 | 2/2 |
-| out of scope | 4/4 | 4/4 |
-| direct injection | 7/7 | 0/7 |
-| indirect injection | 3/3 | 0/3 |
-| PII | 3/4 | 0/4 |
-| benign probes | 4/5 | 4/5 |
-| **attack success** (lower is better) | **0/14** | 14/14 |
-| **over-refusal** (lower is better) | **2/16** | 2/16 |
+The Presidio column comes from a run against the live Presidio containers (`make presidio-up && make eval-presidio`).
 
-Guardrails stop every adversarial case without adding a single refusal of an answerable question. The Presidio-only cases show why the regex fallback is not enough: on regex, the on-call owner's name from the roster reaches the answer. A separate CI job runs the suite against the Presidio containers and publishes its report as the `eval-report-presidio` artifact.
+Guardrails stop every adversarial case without adding a single refusal of an answerable question. The Presidio-only cases show why the regex fallback is not enough: on regex, the on-call owner's name from the roster reaches the answer. The reverse also happened: the first live run showed that Presidio skips e-mail addresses on non-public domains such as `.example`, which the regex caught (see ADR 0004). A separate CI job runs the suite against the Presidio containers and publishes its report as the `eval-report-presidio` artifact.
 
 The three remaining failures are retrieval misses, not guardrail misses, and are reported as known limitations rather than hidden: the lexical retriever does not connect paraphrases such as "how long does access last" with "access expires".
 
