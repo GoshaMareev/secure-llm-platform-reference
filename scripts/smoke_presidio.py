@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -37,16 +38,42 @@ def check(label: str, text: str) -> bool:
     return not leaked
 
 
+def wait_until_ready(base_url: str, timeout_seconds: float = 90.0) -> bool:
+    """LiteLLM accepts TCP before startup completes; poll readiness instead of racing it."""
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        try:
+            with urlopen(f"{base_url}/health/readiness", timeout=3):  # noqa: S310 - local endpoint
+                return True
+        except (URLError, ConnectionError, OSError):
+            time.sleep(2)
+    return False
+
+
 def main() -> None:
     analyzer = os.getenv("PRESIDIO_ANALYZER_URL", "http://127.0.0.1:5002")
     anonymizer = os.getenv("PRESIDIO_ANONYMIZER_URL", "http://127.0.0.1:5001")
     redacted, kinds = PresidioHttpRedactor(analyzer_url=analyzer, anonymizer_url=anonymizer).redact(SAMPLE)
     passed = check(f"RAG API path via Presidio ({', '.join(kinds)})", redacted)
 
-    gateway = os.getenv("LITELLM_URL", "http://127.0.0.1:4000")
+    gateway = os.getenv("LITELLM_URL", "http://127.0.0.1:4000").rstrip("/")
     key = os.getenv("LITELLM_MASTER_KEY", "")
+    try:
+        with urlopen(f"{gateway}/health/liveliness", timeout=3):  # noqa: S310 - local endpoint
+            pass
+    except URLError as error:
+        if isinstance(error.reason, ConnectionRefusedError):
+            # Nothing listens on the port: the gateway profile was not started.
+            print(f"[skip] LiteLLM gateway not running at {gateway}; start it with make gateway-up")
+            raise SystemExit(0 if passed else 1) from None
+    except (ConnectionError, OSError):
+        pass  # listening but still starting; readiness polling below decides
+    if not wait_until_ready(gateway):
+        print(f"[FAIL] LiteLLM gateway at {gateway} did not become ready within 90 s")
+        raise SystemExit(1)
+
     request = Request(  # noqa: S310 - local operator endpoint
-        f"{gateway.rstrip('/')}/guardrails/apply_guardrail",
+        f"{gateway}/guardrails/apply_guardrail",
         data=json.dumps({"guardrail_name": "presidio-pii-input", "text": SAMPLE, "language": "en"}).encode(),
         headers={"content-type": "application/json", "authorization": f"Bearer {key}"},
         method="POST",

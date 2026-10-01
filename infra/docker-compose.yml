@@ -135,6 +135,14 @@ services:
     cap_drop: ["ALL"]
     security_opt:
       - no-new-privileges:true
+    # The process accepts connections before application startup completes;
+    # readiness is what `up --wait` must wait for.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/readiness', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
     networks: [platform, gateway]
 
   fluent-bit:

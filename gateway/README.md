@@ -11,6 +11,8 @@ The gateway runs two Presidio guardrails on every call, for every application be
 - `presidio-pii-input` (`pre_call`) masks names, e-mail addresses, phone numbers, cards, IBANs and IP addresses, and blocks requests that contain a US SSN;
 - `presidio-pii-output` (`post_call`) masks the same entities in responses.
 
+The gateway uses Presidio's own placeholders (`<PERSON>`, `<EMAIL_ADDRESS>`); the RAG API uses `[REDACTED_PERSON]`-style placeholders. Both come from the same Presidio services.
+
 `output_parse_pii` stays off because retrieved documents travel in the prompt; restoring masked values would leak corpus personal data into answers. Check the running guardrail without a model:
 
 ```bash
