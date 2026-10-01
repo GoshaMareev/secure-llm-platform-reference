@@ -68,6 +68,9 @@ def main() -> None:
             raise SystemExit(0 if passed else 1) from None
     except (ConnectionError, OSError):
         pass  # listening but still starting; readiness polling below decides
+    if not key:
+        print("[FAIL] LITELLM_MASTER_KEY is not set in this shell; export the value the gateway started with")
+        raise SystemExit(1)
     if not wait_until_ready(gateway):
         print(f"[FAIL] LiteLLM gateway at {gateway} did not become ready within 90 s")
         raise SystemExit(1)
