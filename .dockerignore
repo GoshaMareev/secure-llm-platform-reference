@@ -1,11 +1,8 @@
 .git
-.github
-.env
-.local
 .venv
+.local
+.env
+.env.*
 __pycache__
 *.pyc
-*.log
-dist
-build
-
+docs/portfolio-plan.local.md

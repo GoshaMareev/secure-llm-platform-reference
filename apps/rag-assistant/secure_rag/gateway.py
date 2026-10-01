@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from ingestion.vectorizer import expand_tokens, tokenize
 
@@ -65,6 +65,7 @@ class OpenAICompatibleGateway:
     model: str
     api_key: str
     timeout_seconds: float = 20.0
+    allowed_http_hosts: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         parsed = urlparse(self.base_url)
@@ -73,7 +74,11 @@ class OpenAICompatibleGateway:
             or not parsed.hostname
             or parsed.username is not None
             or parsed.password is not None
-            or (parsed.scheme != "https" and parsed.hostname.casefold() not in LOOPBACK_HOSTS)
+            or (
+                parsed.scheme != "https"
+                and parsed.hostname.casefold()
+                not in (LOOPBACK_HOSTS | {host.strip().casefold() for host in self.allowed_http_hosts})
+            )
         )
         if invalid:
             raise ValueError(
@@ -104,7 +109,13 @@ class OpenAICompatibleGateway:
             headers=headers,
             method="POST",
         )
-        with urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310 - operator-controlled URL
+
+        class NoRedirect(HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+
+        # A redirect must not forward credentials/context outside the configured boundary.
+        with build_opener(NoRedirect).open(request, timeout=self.timeout_seconds) as response:
             content_length = response.headers.get("Content-Length")
             if content_length and int(content_length) > MAX_RESPONSE_BYTES:
                 raise ValueError("Model response exceeds the configured size limit")

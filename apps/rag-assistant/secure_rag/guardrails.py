@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Protocol
 
 from .gateway import SYSTEM_PROMPT
@@ -24,18 +24,24 @@ INPUT_INJECTION = "input_injection_blocked"
 INPUT_PII = "input_pii_redacted"
 CONTEXT_INJECTION = "context_injection_quarantined"
 OUTPUT_PII = "output_pii_redacted"
+CONTEXT_PII = "context_pii_redacted"
 OUTPUT_PROMPT_LEAK = "output_prompt_leak_blocked"
 OUTPUT_INJECTION_ECHO = "output_injection_echo_blocked"
 PII_CHECK_UNAVAILABLE = "pii_check_unavailable_blocked"
+IDENTITY_ACCESS_DENIED = "identity_access_denied"
+SCOPE_ACCESS_DENIED = "scope_access_denied"
 
 ALL_VERDICTS = (
     INPUT_INJECTION,
     INPUT_PII,
     CONTEXT_INJECTION,
     OUTPUT_PII,
+    CONTEXT_PII,
     OUTPUT_PROMPT_LEAK,
     OUTPUT_INJECTION_ECHO,
     PII_CHECK_UNAVAILABLE,
+    IDENTITY_ACCESS_DENIED,
+    SCOPE_ACCESS_DENIED,
 )
 
 _INVISIBLE = re.compile("[­᠎​-‏‪-‮⁠-⁤﻿]")
@@ -201,6 +207,7 @@ class ContextDecision:
     kept: list[SearchResult]
     quarantined_chunk_ids: tuple[str, ...]
     verdicts: tuple[str, ...]
+    blocked: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,6 +248,22 @@ class Guardrails:
                 kept.append(result)
         verdicts = (CONTEXT_INJECTION,) if quarantined else ()
         return ContextDecision(kept=kept, quarantined_chunk_ids=tuple(quarantined), verdicts=verdicts)
+
+    def redact_context(self, results: list[SearchResult]) -> ContextDecision:
+        """Sanitize all context fields that leave the application, including citations."""
+        kept: list[SearchResult] = []
+        changed = False
+        try:
+            for result in results:
+                fields: dict[str, str] = {}
+                for name in ("text", "title", "source_path", "document_id"):
+                    value, kinds = self._pii.redact(getattr(result.chunk, name))
+                    fields[name] = value
+                    changed |= bool(kinds)
+                kept.append(replace(result, chunk=replace(result.chunk, **fields)))
+        except PiiServiceError:
+            return ContextDecision([], (), (PII_CHECK_UNAVAILABLE,), blocked=True)
+        return ContextDecision(kept, (), (CONTEXT_PII,) if changed else ())
 
     def check_output(self, answer: str) -> OutputDecision:
         normalized = normalize(answer)

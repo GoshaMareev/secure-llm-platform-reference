@@ -8,6 +8,8 @@ from ingestion.models import IndexedChunk
 from ingestion.store import read_index
 from ingestion.vectorizer import cosine_similarity, expand_tokens, tokenize, vectorize
 
+from .authorization import PUBLIC_SCOPE, RetrievalScope
+
 
 @dataclass(frozen=True, slots=True)
 class SearchResult:
@@ -51,6 +53,7 @@ class Retriever:
         *,
         filters: dict[str, str] | None = None,
         top_k: int = 3,
+        scope: RetrievalScope = PUBLIC_SCOPE,
     ) -> list[SearchResult]:
         base_tokens = tokenize(question)
         expanded_tokens = expand_tokens(base_tokens, self._glossary)
@@ -60,6 +63,8 @@ class Retriever:
 
         candidates: list[SearchResult] = []
         for chunk in self._chunks:
+            if not scope.allows(chunk.metadata):
+                continue
             if not self._matches_filters(chunk, requested_filters):
                 continue
             chunk_set = set(chunk.tokens)

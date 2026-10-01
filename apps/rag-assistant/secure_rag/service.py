@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .authorization import PUBLIC_SCOPE, RetrievalScope
 from .gateway import ModelGateway
-from .guardrails import REDACTION_PLACEHOLDER, Guardrails
+from .guardrails import REDACTION_PLACEHOLDER, SCOPE_ACCESS_DENIED, Guardrails
 from .retrieval import Retriever, SearchResult
 
 REFUSAL = "I do not have enough grounded context to answer this question."
@@ -53,9 +54,18 @@ class RAGService:
         self._top_k = top_k
         self._guardrails = guardrails
 
-    def ask(self, question: str, *, filters: dict[str, str] | None = None) -> Answer:
+    def ask(
+        self,
+        question: str,
+        *,
+        filters: dict[str, str] | None = None,
+        scope: RetrievalScope = PUBLIC_SCOPE,
+    ) -> Answer:
         verdicts: list[str] = []
         guard = self._guardrails
+        audience = (filters or {}).get("audience")
+        if audience is not None and audience.casefold() not in scope.audiences:
+            return Answer(POLICY_REFUSAL, 0.0, True, (), (SCOPE_ACCESS_DENIED,), blocked=True)
 
         if guard is not None:
             decision = guard.check_input(question)
@@ -69,7 +79,7 @@ class RAGService:
         # Redaction placeholders carry no meaning for retrieval; leaving them in
         # the query dilutes lexical coverage and lowers confidence.
         search_query = REDACTION_PLACEHOLDER.sub(" ", question)
-        results = self._retriever.search(search_query, filters=filters, top_k=self._top_k)
+        results = self._retriever.search(search_query, filters=filters, top_k=self._top_k, scope=scope)
         if guard is not None:
             screened = guard.screen_context(results)
             verdicts.extend(screened.verdicts)
@@ -82,6 +92,12 @@ class RAGService:
             # the corpus inventory even when the question is out of scope.
             return Answer(REFUSAL, confidence, True, (), tuple(verdicts))
 
+        if guard is not None:
+            redacted = guard.redact_context(results)
+            verdicts.extend(redacted.verdicts)
+            if redacted.blocked:
+                return Answer(POLICY_REFUSAL, confidence, True, (), tuple(verdicts), blocked=True)
+            results = redacted.kept
         text = self._gateway.answer(question, results)
         if guard is not None:
             output = guard.check_output(text)

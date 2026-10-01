@@ -23,4 +23,4 @@ RUN mkdir -p /app/generated /var/log/reference/runtime /var/log/reference/audit 
 USER 10001:10001
 
 EXPOSE 8000
-CMD ["uvicorn", "secure_rag.api:app", "--app-dir", "/app/apps/rag-assistant", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "secure_rag.api:build_app", "--factory", "--app-dir", "/app/apps/rag-assistant", "--host", "0.0.0.0", "--port", "8000"]

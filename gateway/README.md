@@ -26,3 +26,5 @@ Security properties:
 - retrieval filters and source selection remain inside the RAG service;
 - the operational log path never receives prompts, answers, or authorization headers.
 
+
+For a completion-route check of automatic input/output masking and SSN blocking, run the [synthetic upstream verification](../docs/walkthrough.md#verify-the-live-model-boundary). The apply-guardrail smoke is an adapter check, not proof of completion-hook execution. The API sanitizes outgoing context independently and Compose routes it to `litellm` through an exact HTTP host allowlist.

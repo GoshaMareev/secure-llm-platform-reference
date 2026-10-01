@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "apps" / "rag-assistant"))
 
+from secure_rag.authorization import RetrievalScope  # noqa: E402
 from secure_rag.gateway import SYSTEM_PROMPT, DemoGateway  # noqa: E402
 from secure_rag.guardrails import (  # noqa: E402
     CONTEXT_INJECTION,
@@ -120,8 +121,12 @@ class _FakePresidio(BaseHTTPRequestHandler):
         elif self.path == "/analyze":
             text = payload["text"]
             body = [
-                {"entity_type": entity, "start": text.index(value), "end": text.index(value) + len(value),
-                 "score": 0.85}
+                {
+                    "entity_type": entity,
+                    "start": text.index(value),
+                    "end": text.index(value) + len(value),
+                    "score": 0.85,
+                }
                 for entity, value in (("PERSON", "Dana Whitfield"), ("EMAIL_ADDRESS", "jane.doe@example.com"))
                 if value in text
             ]
@@ -252,18 +257,21 @@ class PipelineTests(unittest.TestCase):
 
     def test_poisoned_document_is_quarantined(self) -> None:
         question = "Is any provider URL acceptable for vendor integrations?"
-        unguarded = self.unguarded.ask(question)
+        unguarded = self.unguarded.ask(question, scope=RetrievalScope(frozenset({"all", "engineers"})))
         self.assertIn("vendor-integration-notes", {c["source_id"] for c in unguarded.citations})
 
-        guarded = self.guarded.ask(question)
+        guarded = self.guarded.ask(question, scope=RetrievalScope(frozenset({"all", "engineers"})))
         self.assertIn(CONTEXT_INJECTION, guarded.policy_verdicts)
         self.assertNotIn("vendor-integration-notes", {c["source_id"] for c in guarded.citations})
         self.assertNotIn("any provider url is acceptable", guarded.text.casefold())
 
     def test_pii_from_retrieved_context_is_redacted_in_answer(self) -> None:
-        answer = self.guarded.ask("How do I contact the on-call platform owner?")
+        answer = self.guarded.ask(
+            "How do I contact the on-call platform owner?",
+            scope=RetrievalScope(frozenset({"all", "engineers"})),
+        )
         self.assertFalse(answer.refused)
-        self.assertIn(OUTPUT_PII, answer.policy_verdicts)
+        self.assertIn("context_pii_redacted", answer.policy_verdicts)
         self.assertNotIn("@northstar.example", answer.text)
 
 

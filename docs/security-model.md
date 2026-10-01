@@ -15,7 +15,7 @@
 | user → OAuth2 Proxy | Entra ID authorization response | OIDC token validation, tenant issuer, optional allowed group |
 | OAuth2 Proxy → API | forwarded identity headers | Compose keeps API off the host and API requires `X-Forwarded-User` |
 | caller → API | question, actor ID, metadata filters | size limits, typed request schema, injection block, PII redaction |
-| API → retrieval | filter keys and values | exact metadata matching before ranking |
+| API → retrieval | filter keys and values | server-owned audience authorization, then exact narrowing filters before ranking |
 | retrieval → gateway | question and selected context | context quarantine, confidence gate and fixed operator configuration |
 | gateway → caller | model answer | prompt-echo and relayed-instruction block, PII redaction |
 | application → operations | runtime event | schema omits prompt and answer fields |
@@ -29,7 +29,9 @@
 
 An authenticated caller attempts to retrieve documents for another audience or system. The reference applies metadata filters before scoring, so excluded chunks cannot be recovered through ranking.
 
-Direct local mode intentionally omits authentication. The Compose deployment adds an OAuth2 Proxy front door using Microsoft Entra ID OIDC and requires the trusted `X-Forwarded-User` header at the RAG API. The example can restrict access to an Entra security group, but production deployments must validate proxy-header provenance and derive document authorization from authenticated claims rather than caller-supplied filters. This demo still accepts filters from the caller and therefore demonstrates retrieval behavior, not document authorization.
+Direct local mode uses a fixed operator-selected identity and ignores caller identity claims. Protected Compose mode requires the subject forwarded by OAuth2 Proxy and resolves it through the operator-owned identity policy. Unknown subjects receive HTTP 403; documents without an allowed audience are excluded before ranking. Caller filters only narrow this scope and cannot grant access. The default policy contains two fictional subjects; real Entra subject mapping must be provided by the operator.
+
+The API is unpublished and forwarded-header trust relies on controlled backend networks. A compromised container with backend connectivity can spoof those headers; production deployments must enforce proxy provenance or validate a signed token at the API. The loopback walkthrough simulates the trusted proxy and does not verify Entra login.
 
 ### Prompt leakage through logs
 
@@ -49,7 +51,7 @@ An external document in the corpus contains instructions addressed to the model 
 
 ### Personal data in prompts and answers
 
-A caller pastes names, contact or payment details, or a retrieved document contains them. Two layers call the same Presidio services. The RAG API replaces names, e-mail addresses, phone numbers, validated card numbers, IBANs, US SSNs and IP addresses with typed placeholders before retrieval and in the answer. The LiteLLM gateway masks the same entities in every prompt before it reaches a model and in every response, for all applications behind it. If Presidio is unavailable, requests are blocked rather than passed unchecked. The regex fallback covers e-mail, card and phone only.
+A caller pastes names, contact or payment details, or a retrieved document contains them. Two layers call the same Presidio services. The RAG API replaces names, e-mail addresses, phone numbers, validated card numbers, IBANs, US SSNs and IP addresses with typed placeholders before retrieval, in all outgoing context/citation fields, and in the answer. The LiteLLM gateway masks the same entities in every prompt before it reaches a model and in every response, for all applications behind it. If Presidio is unavailable, requests are blocked rather than passed unchecked. The regex fallback covers e-mail, card and phone only.
 
 ### Unsupported answer
 
@@ -58,7 +60,7 @@ A question has weak retrieval support. The confidence gate returns a refusal bef
 ## Explicit limitations
 
 - direct local mode has no authentication; Compose includes the OAuth2 Proxy/Entra ID boundary;
-- metadata filters are caller-provided in the demo;
+- filters are caller-provided narrowing constraints; document audiences are granted only by server-owned identity policy;
 - the deterministic vectorizer is for offline verification, not semantic quality;
 - audit transport to SIEM is documented but intentionally not implemented;
 - local JSONL files are not a tamper-evident audit store;
@@ -68,4 +70,4 @@ A question has weak retrieval support. The confidence gate returns a refusal bef
 
 ## Secure production requirements
 
-Before production use, add identity-derived authorization, encrypted audit transport, credential management, retention controls, rate limits, integrity-protected audit storage, dependency scanning, signed images, and deployment-specific threat modeling.
+Before production use, validate real identity claims and proxy provenance, add encrypted audit transport, credential management, retention controls, rate limits, integrity-protected audit storage, dependency scanning, signed images, and deployment-specific threat modeling.

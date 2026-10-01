@@ -11,6 +11,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_
 from pydantic import BaseModel, Field, field_validator
 
 from .audit import AuditWriter, OperationalEvent, OperationalLogger
+from .authorization import IdentityPolicy
 from .gateway import DemoGateway, OpenAICompatibleGateway
 from .guardrails import Guardrails, build_pii_redactor
 from .retrieval import Retriever, load_glossary
@@ -25,7 +26,13 @@ POLICY_VERDICTS = Counter("rag_policy_verdicts_total", "Guardrail verdicts by co
 class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=4_000)
     filters: dict[str, str] = Field(default_factory=dict)
-    actor_id: str = Field(default="anonymous", min_length=1, max_length=128)
+    actor_id: str = Field(
+        default="anonymous",
+        min_length=1,
+        max_length=128,
+        deprecated=True,
+        description="Ignored. Identity comes from the trusted proxy or operator configuration.",
+    )
 
     @field_validator("filters")
     @classmethod
@@ -50,12 +57,20 @@ class AskResponse(BaseModel):
 
 def build_app(settings: Settings | None = None) -> FastAPI:
     config = settings or Settings.from_env()
+    policy = IdentityPolicy(config.identity_policy_path)
     glossary = load_glossary(Path("sample-data/glossary.json"))
     retriever = Retriever(config.index_path, glossary=glossary)
     if config.gateway_mode == "demo":
         gateway = DemoGateway(glossary)
     elif config.gateway_mode == "openai-compatible":
-        gateway = OpenAICompatibleGateway(config.model_base_url, config.model_name, config.model_api_key)
+        if not config.guardrails_enabled:
+            raise ValueError("External model mode requires guardrails")
+        gateway = OpenAICompatibleGateway(
+            config.model_base_url,
+            config.model_name,
+            config.model_api_key,
+            allowed_http_hosts=config.model_http_hosts,
+        )
     else:
         raise ValueError("RAG_GATEWAY_MODE must be demo or openai-compatible")
 
@@ -78,9 +93,23 @@ def build_app(settings: Settings | None = None) -> FastAPI:
 
     @app.middleware("http")
     async def limit_request_body(request: Request, call_next):
-        content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > 64 * 1024:
-            return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+        if request.method == "POST":
+            content_length = request.headers.get("content-length")
+            try:
+                length = int(content_length) if content_length else 0
+            except ValueError:
+                return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length"})
+            if length < 0:
+                return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length"})
+            if length > 64 * 1024:
+                return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+            body = bytearray()
+            async for chunk in request.stream():
+                body.extend(chunk)
+                if len(body) > 64 * 1024:
+                    return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+            # Starlette's downstream request receives the bounded cached body.
+            request._body = bytes(body)
         return await call_next(request)
 
     @app.get("/healthz")
@@ -104,12 +133,22 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         refused = True
         verdicts: tuple[str, ...] = ()
         audit_written = False
-        actor_id = request.headers.get("x-forwarded-user") or payload.actor_id
+        actor_id = (
+            request.headers.get("x-forwarded-user", "")
+            if config.require_auth_header
+            else config.local_actor_id
+        )
         try:
             if config.require_auth_header and not request.headers.get("x-forwarded-user"):
                 status = 401
                 raise HTTPException(status_code=401, detail="Authenticated proxy header required")
-            answer = service.ask(payload.question, filters=payload.filters)
+            try:
+                scope = policy.scope_for(actor_id)
+            except PermissionError as error:
+                status = 403
+                verdicts = ("identity_access_denied",)
+                raise HTTPException(status_code=403, detail="Identity has no access policy") from error
+            answer = service.ask(payload.question, filters=payload.filters, scope=scope)
             retrieved_chunks = len(answer.citations)
             refused = answer.refused
             verdicts = answer.policy_verdicts
@@ -136,13 +175,14 @@ def build_app(settings: Settings | None = None) -> FastAPI:
                 citations=list(answer.citations),
             )
         except HTTPException:
-            REQUESTS.labels(status="unauthorized", refused="true").inc()
+            REQUESTS.labels(status="unauthorized" if status == 401 else "access_denied", refused="true").inc()
             raise
         except ValueError as error:
             status = 400
             REQUESTS.labels(status="invalid", refused="true").inc()
             raise HTTPException(status_code=400, detail=str(error)) from error
         except Exception as error:
+            refused = True
             status = 500
             REQUESTS.labels(status="error", refused="true").inc()
             raise HTTPException(status_code=500, detail="Request failed") from error
@@ -156,6 +196,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
                         confidence=0.0,
                         source_ids=[],
                         refused=True,
+                        policy_verdicts=verdicts,
                     )
                 except Exception:
                     REQUESTS.labels(status="audit_error", refused="true").inc()
@@ -175,6 +216,3 @@ def build_app(settings: Settings | None = None) -> FastAPI:
             )
 
     return app
-
-
-app = build_app()

@@ -1,4 +1,4 @@
-.PHONY: index test eval eval-presidio presidio-up gateway-up smoke-presidio test-presidio publication-check verify
+.PHONY: index test eval eval-presidio presidio-up gateway-up smoke-presidio test-presidio publication-check verify walkthrough verify-gateway report verify-telemetry
 
 PYTHON ?= python3
 COMPOSE = docker compose -f infra/docker-compose.yml
@@ -34,5 +34,18 @@ test-presidio:
 publication-check:
 	$(PYTHON) scripts/pre_publication_check.py
 
-verify: test eval publication-check
+walkthrough:
+	$(PYTHON) scripts/walkthrough.py --report .local/walkthrough.md
+
+verify-gateway:
+	$(PYTHON) scripts/verify_gateway.py
+
+verify-telemetry:
+	$(PYTHON) scripts/verify_telemetry.py
+
+report: index
+	PYTHONPATH=".:apps/rag-assistant" $(PYTHON) evals/run.py --index .local/index.json --cases evals/cases.jsonl --compare --report docs/evaluation-report.md
+	$(PYTHON) scripts/walkthrough.py --report docs/walkthrough-report.md
+
+verify: test eval walkthrough publication-check
 

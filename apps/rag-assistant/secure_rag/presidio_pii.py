@@ -19,7 +19,7 @@ from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from .guardrails import PiiServiceError
+from .guardrails import PiiServiceError, redact_pii
 
 # Entity types this deployment treats as personal data, mapped to the kind used
 # in placeholders and verdicts. DATE_TIME, LOCATION and NRP are deliberately
@@ -115,7 +115,7 @@ class PresidioHttpRedactor:
         except (AttributeError, KeyError, TypeError, ValueError) as error:
             raise PiiServiceError("Presidio analyzer returned malformed findings") from error
         if not findings:
-            return text, ()
+            return redact_pii(text)
         result = self._post(
             f"{self._anonymizer}/anonymize",
             {
@@ -134,4 +134,7 @@ class PresidioHttpRedactor:
                 if isinstance(item, dict) and item.get("entity_type") in ENTITY_KINDS
             )
         )
-        return result["text"], kinds
+        # Apply fallback after NER/checksums so phone patterns cannot split an IBAN.
+        # The remote verdict remains mandatory even when fallback finds an email.
+        redacted, fallback_kinds = redact_pii(result["text"])
+        return redacted, tuple(dict.fromkeys((*kinds, *fallback_kinds)))

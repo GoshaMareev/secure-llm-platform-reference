@@ -28,7 +28,7 @@ Personal-data redaction runs on **shared Presidio services**, not inside the app
                     ┌──────────────────── presidio-analyzer :3000 ───┐
 RAG API ── HTTP ───►│  spaCy NER + validated recognizers             │◄── HTTP ── LiteLLM gateway
 (input, context,    └──────────────────── presidio-anonymizer :3000 ─┘    (pre_call / post_call
- output, audit)                                                            guardrails, every app)
+ output)                                                            guardrails, every app)
 ```
 
 - **Gateway layer (LiteLLM).** `presidio-pii-input` (`pre_call`) masks names, contacts, cards, IBANs and IP addresses before any prompt reaches a model, and blocks requests carrying a US SSN. `presidio-pii-output` (`post_call`) masks the response. Both are `default_on`, so every application behind the gateway gets them, not only this one. `output_parse_pii` is off: retrieved documents travel inside the prompt, and restoring masked values would put personal data from the corpus back into answers.
@@ -54,8 +54,14 @@ The evaluation suite holds adversarial and benign-probe cases next to grounded o
 - the benign-probe category makes false positives visible; a rule change that blocks a legitimate question fails CI;
 - injection rules are English-only pattern rules and are bypassable by paraphrase, other languages, encodings, and multi-turn setups; they demonstrate where policy runs, not state-of-the-art injection detection;
 - Presidio's NER recall depends on the spaCy model in the analyzer image; names that the model does not tag as PERSON pass through;
-- Presidio's e-mail recognizer validates the top-level domain against the public suffix list, so addresses on non-public domains (`.example`, `.local`, `.corp`, an internal mail zone) are not detected; this surfaced in the evaluation, where the regex fallback caught an address Presidio missed. Deployments with internal mail domains need a custom recognizer;
+- Presidio's e-mail recognizer validates the top-level domain against the public suffix list, so the reference adds `EnterpriseEmailRecognizer` in the shared analyzer for non-public domains (`.example`, `.local`, `.corp`, an internal mail zone); this surfaced in the evaluation, where the regex fallback caught an address Presidio missed. the HTTP adapter also applies deterministic fallback after Presidio processing, preserving IBAN detection;
 - Presidio adds a network hop and a dependency on two more services; fail-closed means a Presidio outage stops the assistant, which is the intended trade-off;
-- the Presidio and LiteLLM images are referenced by tag, not yet by digest like the other images;
+- Presidio and LiteLLM images are pinned by digest, and CI mounts the same shared recognizer configuration;
 - chunk-level quarantine drops a whole chunk, including any useful text around the injected instruction;
 - the `Guardrails` methods are the substitution point for a trained prompt-injection classifier, as `PiiRedactor` already is for personal data; LiteLLM's guardrail list is the matching place at the gateway layer.
+
+## Follow-up: outbound context and strict evaluation
+
+Context PII is removed before any model HTTP call, including document titles/source identifiers returned as citations. `context_pii_redacted` records this control; an unavailable redactor blocks generation. Audit remains hash-only by default; opt-in raw audit intentionally preserves original input in its separate spool.
+
+Known-limitations waive exact quality failures only. Policy violations, control-contract failures and quality failures are reported separately; a safe refusal without a control verdict is not classified as an attack success. Authorization remains enforced in the unguarded comparison.

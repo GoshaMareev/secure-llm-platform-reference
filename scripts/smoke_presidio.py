@@ -26,7 +26,7 @@ SAMPLE = (
     "Dana Whitfield asked to refund GB82 WEST 1234 5698 7654 32, "
     "card 4111 1111 1111 1111, reply to jane.doe@example.com."
 )
-RAW_VALUES = ("Dana Whitfield", "GB82", "4111 1111", "jane.doe@example.com")
+RAW_VALUES = ("Dana Whitfield", "GB82", "4111 1111", "jane.doe@example.com", "demo@northstar.corp")
 
 
 def check(label: str, text: str) -> bool:
@@ -38,7 +38,7 @@ def check(label: str, text: str) -> bool:
     return not leaked
 
 
-def wait_until_ready(base_url: str, timeout_seconds: float = 90.0) -> bool:
+def wait_until_ready(base_url: str, timeout_seconds: float = 45.0) -> bool:
     """LiteLLM accepts TCP before startup completes; poll readiness instead of racing it."""
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
@@ -58,6 +58,7 @@ def main() -> None:
 
     gateway = os.getenv("LITELLM_URL", "http://127.0.0.1:4000").rstrip("/")
     key = os.getenv("LITELLM_MASTER_KEY", "")
+    required = os.getenv("REQUIRE_GATEWAY", "0") == "1"
     try:
         with urlopen(f"{gateway}/health/liveliness", timeout=3):  # noqa: S310 - local endpoint
             pass
@@ -65,14 +66,14 @@ def main() -> None:
         if isinstance(error.reason, ConnectionRefusedError):
             # Nothing listens on the port: the gateway profile was not started.
             print(f"[skip] LiteLLM gateway not running at {gateway}; start it with make gateway-up")
-            raise SystemExit(0 if passed else 1) from None
+            raise SystemExit(0 if passed and not required else 1) from None
     except (ConnectionError, OSError):
         pass  # listening but still starting; readiness polling below decides
     if not key:
         print("[FAIL] LITELLM_MASTER_KEY is not set in this shell; export the value the gateway started with")
         raise SystemExit(1)
     if not wait_until_ready(gateway):
-        print(f"[FAIL] LiteLLM gateway at {gateway} did not become ready within 90 s")
+        print(f"[FAIL] LiteLLM gateway at {gateway} did not become ready within 45 s")
         raise SystemExit(1)
 
     request = Request(  # noqa: S310 - local operator endpoint
@@ -84,13 +85,16 @@ def main() -> None:
     try:
         with urlopen(request, timeout=30) as response:  # noqa: S310
             body = json.loads(response.read())
-        gateway_ok = check("LiteLLM gateway guardrail presidio-pii-input", str(body.get("response_text", body)))
+        gateway_ok = check(
+            "LiteLLM gateway guardrail presidio-pii-input", str(body.get("response_text", body))
+        )
         passed = passed and gateway_ok
     except HTTPError as error:
         print(f"[FAIL] LiteLLM gateway answered HTTP {error.code}: {error.read()[:300]!r}")
         passed = False
     except URLError:
-        print(f"[skip] LiteLLM gateway not reachable at {gateway}; start it with make gateway-up")
+        print(f"[FAIL] LiteLLM gateway became unreachable at {gateway}")
+        passed = False
     except (ConnectionError, OSError) as error:
         # The port answered but the connection dropped: usually the gateway crashed
         # or is still starting. Its logs say which.

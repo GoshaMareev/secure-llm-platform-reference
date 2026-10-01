@@ -35,7 +35,7 @@ services:
     cap_drop: ["ALL"]
     security_opt:
       - no-new-privileges:true
-    networks: [platform]
+    networks: [platform, identity-egress]
 
   rag-assistant:
     build:
@@ -51,13 +51,16 @@ services:
       AUDIT_INCLUDE_PROMPT: ${AUDIT_INCLUDE_PROMPT:-false}
       AUDIT_PSEUDONYM_SALT: ${AUDIT_PSEUDONYM_SALT:-}
       REQUIRE_AUTH_HEADER: "true"
+      RAG_IDENTITY_POLICY_PATH: /run/secrets/identity-policy
       GUARDRAILS_ENABLED: ${GUARDRAILS_ENABLED:-true}
       PII_BACKEND: ${PII_BACKEND:-presidio}
       PRESIDIO_ANALYZER_URL: http://presidio-analyzer:3000
       PRESIDIO_ANONYMIZER_URL: http://presidio-anonymizer:3000
-      OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-http://host.docker.internal:4000/v1}
-      OPENAI_COMPATIBLE_MODEL: ${OPENAI_COMPATIBLE_MODEL:-local-model}
-      OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
+      OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-http://litellm:4000/v1}
+      OPENAI_COMPATIBLE_MODEL: ${OPENAI_COMPATIBLE_MODEL:-local-reference-model}
+      OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-${LITELLM_MASTER_KEY:-}}
+      MODEL_HTTP_ALLOWED_HOSTS: litellm
+    secrets: [identity-policy]
     volumes:
       - runtime-logs:/var/log/reference/runtime
       - audit-spool:/var/log/reference/audit
@@ -82,7 +85,11 @@ services:
   # Shared PII services. The RAG API and the LiteLLM gateway call the same pair,
   # so detection rules and the spaCy model live in one place.
   presidio-analyzer:
-    image: ${PRESIDIO_ANALYZER_IMAGE:-ghcr.io/data-privacy-stack/presidio-analyzer:latest}
+    image: ${PRESIDIO_ANALYZER_IMAGE:-ghcr.io/data-privacy-stack/presidio-analyzer@sha256:ae8f6f111ac2f04e3fec552f7f80edd0dcbfa2dd69ee1b9e030475be31669885}
+    environment:
+      RECOGNIZER_REGISTRY_CONF_FILE: /etc/presidio/recognizers.yaml
+    volumes:
+      - ./presidio/recognizers.yaml:/etc/presidio/recognizers.yaml:ro
     ports:
       - "127.0.0.1:5002:3000"
     cap_drop: ["ALL"]
@@ -97,7 +104,7 @@ services:
     networks: [platform, gateway]
 
   presidio-anonymizer:
-    image: ${PRESIDIO_ANONYMIZER_IMAGE:-ghcr.io/data-privacy-stack/presidio-anonymizer:latest}
+    image: ${PRESIDIO_ANONYMIZER_IMAGE:-ghcr.io/data-privacy-stack/presidio-anonymizer@sha256:e567013893ebc80994e3799f6f55c86aa1f0b0fadb779571ab346f0ec45365c1}
     ports:
       - "127.0.0.1:5001:3000"
     cap_drop: ["ALL"]
@@ -113,7 +120,7 @@ services:
   # Model gateway with Presidio guardrails on every request and response.
   # Started only with --profile gateway; needs LITELLM_MASTER_KEY.
   litellm:
-    image: ${LITELLM_IMAGE:-ghcr.io/berriai/litellm:main-stable}
+    image: ${LITELLM_IMAGE:-ghcr.io/berriai/litellm@sha256:f63fb81b831b170ec16851e23c36ac5bf52ef106b271406429524a2ed730bbfd}
     profiles: [gateway]
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     environment:
@@ -145,10 +152,37 @@ services:
       start_period: 20s
     networks: [platform, gateway]
 
+  test-model:
+    image: python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+    profiles: [verification]
+    command: ["python", "/verify/mock_model.py"]
+    volumes:
+      - ../scripts/mock_model.py:/verify/mock_model.py:ro
+    user: "65534:65534"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    networks: [gateway]
+
+  fluent-state-init:
+    image: python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+    command: ["python", "-c", "import os; os.chown('/state', 10001, 10001); [os.chown('/state/'+n, 10001, 10001, follow_symlinks=False) for n in os.listdir('/state')]"]
+    user: "0:0"
+    network_mode: none
+    read_only: true
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN"]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - fluent-state:/state
+
   fluent-bit:
     image: ${FLUENT_BIT_IMAGE:-fluent/fluent-bit:3.1.9@sha256:4af3920cc2ff976200e0fc09f23e7ca4ee7d4477a6d592cb496fc39378181b02}
     command: ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
+    user: "10001:10001"
     depends_on:
+      fluent-state-init:
+        condition: service_completed_successfully
       loki:
         condition: service_started
       rag-assistant:
@@ -164,7 +198,7 @@ services:
     cap_drop: ["ALL"]
     security_opt:
       - no-new-privileges:true
-    networks: [platform]
+    networks: [platform, observability-access]
 
   loki:
     image: ${LOKI_IMAGE:-grafana/loki:3.1.1@sha256:e689cc634841c937de4d7ea6157f17e29cf257d6a320f1c293ab18d46cfea986}
@@ -177,7 +211,7 @@ services:
     cap_drop: ["ALL"]
     security_opt:
       - no-new-privileges:true
-    networks: [platform]
+    networks: [platform, observability-access]
 
   prometheus:
     image: ${PROMETHEUS_IMAGE:-prom/prometheus:v2.54.1@sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94}
@@ -194,7 +228,7 @@ services:
     cap_drop: ["ALL"]
     security_opt:
       - no-new-privileges:true
-    networks: [platform]
+    networks: [platform, observability-access]
 
 networks:
   platform:
@@ -202,6 +236,8 @@ networks:
   # Egress for the model gateway and loopback publishing of the Presidio and
   # LiteLLM ports for local checks. The RAG API stays on the internal network.
   gateway: {}
+  identity-egress: {}
+  observability-access: {}
 
 volumes:
   runtime-logs:
@@ -209,3 +245,7 @@ volumes:
   fluent-state:
   loki-data:
   prometheus-data:
+
+secrets:
+  identity-policy:
+    file: ${IDENTITY_POLICY_FILE:-../sample-data/identity-policy.json}

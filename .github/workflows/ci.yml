@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "portfolio/**", "codex/**"]
   pull_request:
 
 permissions:
@@ -26,13 +26,17 @@ jobs:
       - name: Install runtime dependencies
         run: python -m pip install --require-hashes --requirement requirements.lock
 
+      - name: Check Python code
+        run: python -m ruff check apps ingestion evals tests scripts
+
       - name: Run offline tests
         run: python -m unittest discover -s tests -v
 
       - name: Build synthetic index and run evaluations
         run: |
           python -m ingestion.build_index --source sample-data --output .local/index.json
-          PYTHONPATH=".:apps/rag-assistant" python evals/run.py --index .local/index.json --cases evals/cases.jsonl --compare --quiet
+          PYTHONPATH=".:apps/rag-assistant" python evals/run.py --index .local/index.json --cases evals/cases.jsonl --compare --quiet --report .local/evaluation-report.md
+          python scripts/walkthrough.py --report .local/walkthrough-report.md
 
       - name: Check publication safety
         run: python scripts/pre_publication_check.py
@@ -40,18 +44,20 @@ jobs:
       - name: Validate Compose model
         run: docker compose -f infra/docker-compose.yml config --quiet
 
+      - name: Upload offline evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: reference-offline-evidence
+          path: |
+            .local/evaluation-report.md
+            .local/walkthrough-report.md
+
   presidio:
     # Same tests and evaluation against the real Presidio containers that the
     # Compose stack runs for the RAG API and the LiteLLM gateway.
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    services:
-      presidio-analyzer:
-        image: ghcr.io/data-privacy-stack/presidio-analyzer:latest
-        ports: ["5002:3000"]
-      presidio-anonymizer:
-        image: ghcr.io/data-privacy-stack/presidio-anonymizer:latest
-        ports: ["5001:3000"]
     env:
       PRESIDIO_ANALYZER_URL: http://127.0.0.1:5002
       PRESIDIO_ANONYMIZER_URL: http://127.0.0.1:5001
@@ -67,14 +73,8 @@ jobs:
       - name: Install runtime dependencies
         run: python -m pip install --require-hashes --requirement requirements.lock
 
-      - name: Wait for Presidio
-        run: |
-          for service in "$PRESIDIO_ANALYZER_URL" "$PRESIDIO_ANONYMIZER_URL"; do
-            for attempt in $(seq 1 60); do
-              curl -fsS "$service/health" && break
-              sleep 3
-            done
-          done
+      - name: Start pinned Presidio with the shared enterprise recognizer
+        run: docker compose -f infra/docker-compose.yml up -d --wait presidio-analyzer presidio-anonymizer
 
       - name: Run tests including live Presidio checks
         env:
@@ -96,3 +96,29 @@ jobs:
         with:
           name: eval-report-presidio
           path: evals/report-presidio.md
+
+      - name: Generate ephemeral gateway key
+        run: python -c "import secrets; print('LITELLM_MASTER_KEY=sk-' + secrets.token_hex(24))" >> "$GITHUB_ENV"
+
+      - name: Start gateway with synthetic upstream
+        env:
+          LITELLM_UPSTREAM_BASE_URL: http://test-model:8080/v1
+          LITELLM_UPSTREAM_MODEL: openai/synthetic-reference-model
+        run: docker compose -f infra/docker-compose.yml --profile gateway --profile verification up -d --wait test-model litellm
+
+      - name: Verify automatic gateway policy and RAG completion route
+        run: python scripts/verify_gateway.py
+
+      - name: Start container API and operational delivery
+        env:
+          RAG_GATEWAY_MODE: openai-compatible
+          LITELLM_UPSTREAM_BASE_URL: http://test-model:8080/v1
+          LITELLM_UPSTREAM_MODEL: openai/synthetic-reference-model
+        run: docker compose -f infra/docker-compose.yml --profile gateway --profile verification up -d --build --wait rag-assistant loki fluent-bit
+
+      - name: Verify container log delivery and audit separation
+        run: python scripts/verify_telemetry.py
+
+      - name: Stop verification containers
+        if: always()
+        run: docker compose -f infra/docker-compose.yml --profile gateway --profile verification down

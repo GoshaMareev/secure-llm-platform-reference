@@ -27,6 +27,9 @@ class Settings:
     require_auth_header: bool
     guardrails_enabled: bool = True
     pii_backend: str = "regex"
+    identity_policy_path: Path = Path("sample-data/identity-policy.json")
+    local_actor_id: str = "engineer-demo"
+    model_http_hosts: tuple[str, ...] = ()
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -55,6 +58,11 @@ class Settings:
         pii_backend = os.getenv("PII_BACKEND", "regex").casefold()
         if pii_backend not in {"regex", "presidio"}:
             raise ValueError("PII_BACKEND must be regex or presidio")
+        if (
+            not _bool_env("GUARDRAILS_ENABLED", default=True)
+            and os.getenv("RAG_GATEWAY_MODE", "demo") != "demo"
+        ):
+            raise ValueError("External model mode requires guardrails")
         if paths_overlap:
             raise ValueError("RUNTIME_LOG_PATH and AUDIT_LOG_PATH must be separate")
         return cls(
@@ -72,4 +80,9 @@ class Settings:
             require_auth_header=_bool_env("REQUIRE_AUTH_HEADER"),
             guardrails_enabled=_bool_env("GUARDRAILS_ENABLED", default=True),
             pii_backend=pii_backend,
+            identity_policy_path=Path(
+                os.getenv("RAG_IDENTITY_POLICY_PATH", "sample-data/identity-policy.json")
+            ),
+            local_actor_id=os.getenv("RAG_LOCAL_ACTOR_ID", "engineer-demo"),
+            model_http_hosts=tuple(filter(None, os.getenv("MODEL_HTTP_ALLOWED_HOSTS", "").split(","))),
         )
