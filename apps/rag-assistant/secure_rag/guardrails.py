@@ -1,8 +1,8 @@
 """Policy checks around the retrieval and generation path (English-language deployments).
 
 Injection checks are transparent pattern rules on normalized text. Personal-data
-redaction is pluggable: Microsoft Presidio (NER plus validated recognizers) in
-the container image, or a dependency-free regex redactor for offline tests.
+redaction is pluggable: the shared Presidio Analyzer/Anonymizer services (NER
+plus validated recognizers), or a dependency-free regex redactor for offline tests.
 The checks show where policy runs (input, retrieved context, output), what each
 stage may do (block, redact, quarantine), and how verdicts are recorded; see ADR 0004.
 """
@@ -26,6 +26,7 @@ CONTEXT_INJECTION = "context_injection_quarantined"
 OUTPUT_PII = "output_pii_redacted"
 OUTPUT_PROMPT_LEAK = "output_prompt_leak_blocked"
 OUTPUT_INJECTION_ECHO = "output_injection_echo_blocked"
+PII_CHECK_UNAVAILABLE = "pii_check_unavailable_blocked"
 
 ALL_VERDICTS = (
     INPUT_INJECTION,
@@ -34,6 +35,7 @@ ALL_VERDICTS = (
     OUTPUT_PII,
     OUTPUT_PROMPT_LEAK,
     OUTPUT_INJECTION_ECHO,
+    PII_CHECK_UNAVAILABLE,
 )
 
 _INVISIBLE = re.compile("[­᠎​-‏‪-‮⁠-⁤﻿]")
@@ -123,6 +125,10 @@ def _luhn_valid(digits: str) -> bool:
     return total % 10 == 0
 
 
+class PiiServiceError(RuntimeError):
+    """A remote PII service could not give a verdict. Guardrails fail closed on it."""
+
+
 class PiiRedactor(Protocol):
     """Replaces personal data with ``[REDACTED_<KIND>]`` placeholders.
 
@@ -143,9 +149,9 @@ def build_pii_redactor(backend: str) -> PiiRedactor:
     if backend == "regex":
         return RegexPiiRedactor()
     if backend == "presidio":
-        from .presidio_pii import PresidioPiiRedactor
+        from .presidio_pii import PresidioHttpRedactor
 
-        return PresidioPiiRedactor()
+        return PresidioHttpRedactor()
     raise ValueError("PII backend must be regex or presidio")
 
 
@@ -217,7 +223,11 @@ class Guardrails:
         rules = _matches(question, INJECTION_RULES)
         if rules:
             return InputDecision(text="", blocked=True, verdicts=(INPUT_INJECTION,), rules=rules)
-        redacted, kinds = self._pii.redact(question)
+        try:
+            redacted, kinds = self._pii.redact(question)
+        except PiiServiceError:
+            # Fail closed: an unchecked prompt must not reach retrieval or the model.
+            return InputDecision(text="", blocked=True, verdicts=(PII_CHECK_UNAVAILABLE,), rules=())
         verdicts = (INPUT_PII,) if kinds else ()
         return InputDecision(text=redacted, blocked=False, verdicts=verdicts, rules=())
 
@@ -238,5 +248,8 @@ class Guardrails:
             return OutputDecision(text="", blocked=True, verdicts=(OUTPUT_PROMPT_LEAK,))
         if _matches(answer, (*INJECTION_RULES, *EXFILTRATION_RULES)):
             return OutputDecision(text="", blocked=True, verdicts=(OUTPUT_INJECTION_ECHO,))
-        redacted, kinds = self._pii.redact(answer)
+        try:
+            redacted, kinds = self._pii.redact(answer)
+        except PiiServiceError:
+            return OutputDecision(text="", blocked=True, verdicts=(PII_CHECK_UNAVAILABLE,))
         return OutputDecision(text=redacted, blocked=False, verdicts=(OUTPUT_PII,) if kinds else ())

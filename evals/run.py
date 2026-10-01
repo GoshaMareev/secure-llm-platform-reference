@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from secure_rag.gateway import DemoGateway
-from secure_rag.guardrails import Guardrails, build_pii_redactor
+from secure_rag.guardrails import Guardrails, PiiServiceError, build_pii_redactor
 from secure_rag.retrieval import Retriever, load_glossary
 from secure_rag.service import Answer, RAGService
 
@@ -229,6 +229,12 @@ def main() -> None:
     all_cases = [
         json.loads(line) for line in args.cases.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
+    if args.pii_backend == "presidio" and not args.no_guardrails:
+        try:
+            build_pii_redactor("presidio").redact("preflight")
+        except PiiServiceError:
+            # Guardrails would fail closed and block every case; say why instead.
+            raise SystemExit("Presidio is not reachable. Start it with `make presidio-up`.") from None
     cases = [case for case in all_cases if applicable(case, args.pii_backend)]
     skipped = len(all_cases) - len(cases)
     guarded_mode = not args.no_guardrails

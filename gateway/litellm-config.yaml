@@ -1,15 +1,60 @@
+# LiteLLM reads secrets with the os.environ/NAME syntax at startup.
 model_list:
   - model_name: local-reference-model
     litellm_params:
-      model: openai/${OPENAI_COMPATIBLE_MODEL}
-      api_base: ${OPENAI_COMPATIBLE_BASE_URL}
-      api_key: ${OPENAI_COMPATIBLE_API_KEY}
+      # The upstream model the gateway forwards to, e.g. openai/llama3.1 for an
+      # OpenAI-compatible local server. Applications only see local-reference-model.
+      model: os.environ/LITELLM_UPSTREAM_MODEL
+      api_base: os.environ/LITELLM_UPSTREAM_BASE_URL
+      api_key: os.environ/LITELLM_UPSTREAM_API_KEY
+
+# Presidio guardrails run on every request (default_on) for every application
+# behind this gateway, not only the reference RAG API. They call the same
+# presidio-analyzer / presidio-anonymizer containers as the RAG API, through
+# PRESIDIO_ANALYZER_API_BASE and PRESIDIO_ANONYMIZER_API_BASE.
+# Keep the entity list in sync with apps/rag-assistant/secure_rag/presidio_pii.py.
+guardrails:
+  - guardrail_name: presidio-pii-input
+    litellm_params:
+      guardrail: presidio
+      mode: pre_call
+      presidio_language: en
+      presidio_score_thresholds:
+        ALL: 0.4
+      pii_entities_config:
+        PERSON: MASK
+        EMAIL_ADDRESS: MASK
+        PHONE_NUMBER: MASK
+        CREDIT_CARD: MASK
+        IBAN_CODE: MASK
+        IP_ADDRESS: MASK
+        US_SSN: BLOCK
+      # Off on purpose: retrieved documents travel in the prompt, so restoring
+      # masked values would put personal data from the corpus into the answer.
+      output_parse_pii: false
+      default_on: true
+
+  - guardrail_name: presidio-pii-output
+    litellm_params:
+      guardrail: presidio
+      mode: post_call
+      presidio_language: en
+      presidio_score_thresholds:
+        ALL: 0.4
+      pii_entities_config:
+        PERSON: MASK
+        EMAIL_ADDRESS: MASK
+        PHONE_NUMBER: MASK
+        CREDIT_CARD: MASK
+        IBAN_CODE: MASK
+        IP_ADDRESS: MASK
+        US_SSN: MASK
+      default_on: true
 
 general_settings:
-  master_key: ${LITELLM_MASTER_KEY}
+  master_key: os.environ/LITELLM_MASTER_KEY
   disable_spend_logs: true
 
 litellm_settings:
   drop_params: true
   request_timeout: 30
-

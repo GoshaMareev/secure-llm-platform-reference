@@ -21,6 +21,7 @@
 | application → operations | runtime event | schema omits prompt and answer fields |
 | application → audit | audit event | separate path, volume, schema, and opt-in raw prompt |
 | operator → model endpoint | base URL and credential | environment-only configuration; URL validation |
+| gateway → model | prompts from every application | LiteLLM Presidio `pre_call` masking, SSN block; `post_call` masking of responses |
 
 ## Primary attacker stories
 
@@ -48,7 +49,7 @@ An external document in the corpus contains instructions addressed to the model 
 
 ### Personal data in prompts and answers
 
-A caller pastes names, contact or payment details, or a retrieved document contains them. With the Presidio backend, names, e-mail addresses, phone numbers, validated card numbers, IBANs, US SSNs and IP addresses are replaced with typed placeholders before the question reaches retrieval and the model, and again in the answer. The regex fallback covers e-mail, card and phone only.
+A caller pastes names, contact or payment details, or a retrieved document contains them. Two layers call the same Presidio services. The RAG API replaces names, e-mail addresses, phone numbers, validated card numbers, IBANs, US SSNs and IP addresses with typed placeholders before retrieval and in the answer. The LiteLLM gateway masks the same entities in every prompt before it reaches a model and in every response, for all applications behind it. If Presidio is unavailable, requests are blocked rather than passed unchecked. The regex fallback covers e-mail, card and phone only.
 
 ### Unsupported answer
 

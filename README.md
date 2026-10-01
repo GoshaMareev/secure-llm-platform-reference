@@ -10,7 +10,7 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 - metadata-scoped hybrid retrieval with deterministic offline embeddings;
 - glossary expansion, reranking, and a fallback when reranking reduces query coverage;
 - confidence-based grounded refusal and source attribution;
-- layered guardrails: direct-injection blocking, quarantine of poisoned retrieved documents, [Microsoft Presidio](https://github.com/microsoft/presidio) PII redaction in prompts and answers, and system-prompt echo detection ([ADR 0004](docs/decisions/0004-layered-guardrails.md));
+- layered guardrails: direct-injection blocking, quarantine of poisoned retrieved documents, PII redaction in prompts and answers through shared [Presidio](https://github.com/data-privacy-stack/presidio) services used by both the API and the LiteLLM gateway, and system-prompt echo detection ([ADR 0004](docs/decisions/0004-layered-guardrails.md));
 - an explicit gateway boundary with a safe offline demo backend;
 - an OAuth2 Proxy front door for Microsoft Entra ID (OIDC) with optional group authorization;
 - operational logs that never contain prompts or answers;
@@ -28,6 +28,9 @@ flowchart LR
     R --> IDX[(Synthetic index)]
     API --> G[Model gateway boundary]
     API -. input / context / output checks .- GR[Guardrails]
+    GR -- PII --> PR[Presidio analyzer + anonymizer]
+    G -. optional .-> LL[LiteLLM gateway]
+    LL -- pre/post-call PII --> PR
     G --> M[Demo or OpenAI-compatible model]
 
     API -- metadata only --> OP[(Operational log)]
@@ -63,7 +66,20 @@ curl -s http://127.0.0.1:8000/v1/ask \
   -d '{"question":"Who can approve emergency production access?","filters":{"audience":"engineers"}}'
 ```
 
-Local runs default to the dependency-free regex PII redactor. To use Presidio, install `requirements-presidio.txt`, run `python -m spacy download en_core_web_sm`, and set `PII_BACKEND=presidio`. The container image installs Presidio and uses it by default.
+Local runs default to the dependency-free regex PII redactor. To use Presidio, start its containers with `make presidio-up` and set `PII_BACKEND=presidio`; the Compose stack uses Presidio by default.
+
+### Presidio and the LiteLLM gateway
+
+```bash
+make presidio-up      # Presidio analyzer on 127.0.0.1:5002, anonymizer on 127.0.0.1:5001
+make test-presidio    # adapter tests against the live containers
+make eval-presidio    # full evaluation with Presidio
+export LITELLM_MASTER_KEY=$(openssl rand -hex 24)
+make gateway-up       # adds LiteLLM on 127.0.0.1:4000 with Presidio pre/post-call guardrails
+make smoke-presidio   # checks redaction through the API path and the gateway guardrail
+```
+
+The analyzer image ships a large spaCy model; give Docker at least 4 GB of memory.
 
 The default gateway is deterministic and offline. It makes the repository testable without downloading a model or sending data to a hosted API.
 
@@ -87,7 +103,7 @@ For Entra setup, register a single-tenant web application with redirect URI `htt
 
 ```bash
 make eval            # regex PII backend, no extra dependencies; writes evals/report.md
-make eval-presidio   # Presidio backend; needs requirements-presidio.txt and en_core_web_sm
+make eval-presidio   # Presidio backend; needs make presidio-up
 ```
 
 `evals/cases.jsonl` holds 39 English cases in seven categories: grounded answers, metadata scope, out-of-scope refusals, direct prompt injection (including zero-width and full-width obfuscation), indirect injection through a poisoned document, personal data in questions and in retrieved context, and benign probes worded close to attack patterns. Each case states what must hold and what must not leak. Every run also measures the same cases without guardrails. CI runs the suite twice, once per PII backend, and fails on any case that is not listed as a known limitation.
@@ -106,7 +122,7 @@ Regex backend (36 applicable cases; 3 name and IBAN cases need Presidio):
 | **attack success** (lower is better) | **0/14** | 14/14 |
 | **over-refusal** (lower is better) | **2/16** | 2/16 |
 
-Guardrails stop every adversarial case without adding a single refusal of an answerable question. The Presidio-only cases show why the regex fallback is not enough: on regex, the on-call owner's name from the roster reaches the answer. The Presidio job publishes its report as the `eval-report-presidio` CI artifact.
+Guardrails stop every adversarial case without adding a single refusal of an answerable question. The Presidio-only cases show why the regex fallback is not enough: on regex, the on-call owner's name from the roster reaches the answer. A separate CI job runs the suite against the Presidio containers and publishes its report as the `eval-report-presidio` artifact.
 
 The three remaining failures are retrieval misses, not guardrail misses, and are reported as known limitations rather than hidden: the lexical retriever does not connect paraphrases such as "how long does access last" with "access expires".
 
@@ -139,7 +155,7 @@ PUBLICATION_DENYLIST_FILE=/absolute/path/to/private-denylist.txt \
 
 ```text
 apps/rag-assistant/       API and orchestration
-gateway/                  model-gateway interface and LiteLLM example
+gateway/                  model-gateway interface and LiteLLM config with Presidio guardrails
 ingestion/                safe corpus loading, chunking, and index build
 evals/                    grounding, scope and adversarial cases; runner and report
 observability/            Fluent Bit, Prometheus, and Loki configuration
@@ -158,7 +174,8 @@ tests/                    offline unit tests
 - generate an SBOM and dependency-license report, then repeat the security review against the hardened revision;
 - add a semantic-embedding backend (pgvector) and clear the known-limitation evaluation cases;
 - put a trained prompt-injection classifier behind the `Guardrails` interface and compare it on the same cases;
-- hash-lock `requirements-presidio.txt` and the spaCy model like the core dependencies;
+- pin the Presidio and LiteLLM images by digest like the other images;
+- route the RAG API's `openai-compatible` mode through the LiteLLM gateway inside Compose (needs an allowlist for internal HTTP hosts in the gateway URL policy);
 - connect the repository to the portfolio site after the final public-content review.
 
 ## Scope and limitations

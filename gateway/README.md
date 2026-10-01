@@ -4,7 +4,18 @@ The RAG service talks to a `ModelGateway` interface instead of importing a provi
 
 The default `demo` implementation is deterministic and offline. Set `RAG_GATEWAY_MODE=openai-compatible` only when an operator has intentionally configured a local or approved OpenAI-compatible endpoint.
 
-`litellm-config.yaml` is an optional example for a self-hosted LiteLLM gateway. It contains environment references only—never credentials or production endpoints.
+`litellm-config.yaml` configures the self-hosted LiteLLM gateway started by `make gateway-up` (Compose profile `gateway`). It contains `os.environ/` references only, never credentials or production endpoints.
+
+The gateway runs two Presidio guardrails on every call, for every application behind it:
+
+- `presidio-pii-input` (`pre_call`) masks names, e-mail addresses, phone numbers, cards, IBANs and IP addresses, and blocks requests that contain a US SSN;
+- `presidio-pii-output` (`post_call`) masks the same entities in responses.
+
+`output_parse_pii` stays off because retrieved documents travel in the prompt; restoring masked values would leak corpus personal data into answers. Check the running guardrail without a model:
+
+```bash
+make gateway-up && make smoke-presidio
+```
 
 Security properties:
 

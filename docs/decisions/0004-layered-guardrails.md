@@ -1,4 +1,4 @@
-# ADR 0004: Layered guardrails with Presidio PII redaction and an adversarial evaluation gate
+# ADR 0004: Layered guardrails, shared Presidio services and an adversarial evaluation gate
 
 - Status: accepted
 - Date: 2026-10-01
@@ -22,12 +22,23 @@ Add a `Guardrails` component with one checkpoint per entry point:
 | output | relayed injection or exfiltration instruction | block | `output_injection_echo_blocked` |
 | output | personal data (see below) | redact | `output_pii_redacted` |
 
-Personal-data redaction sits behind a `PiiRedactor` interface with two backends:
+Personal-data redaction runs on **shared Presidio services**, not inside the application:
 
-- **Presidio** (`PII_BACKEND=presidio`, the container default): Microsoft Presidio Analyzer with the spaCy `en_core_web_sm` model and Presidio Anonymizer. It detects names through NER and validates cards (Luhn), IBANs (checksum), phone numbers, US SSNs and IP addresses. DATE_TIME, LOCATION and NRP are excluded on purpose, because policy text is full of dates and place-like nouns.
-- **Regex** (`PII_BACKEND=regex`): e-mail, Luhn-valid card and phone patterns with no dependencies. It keeps the hash-locked core install and the offline unit tests self-contained.
+```text
+                    ┌──────────────────── presidio-analyzer :3000 ───┐
+RAG API ── HTTP ───►│  spaCy NER + validated recognizers             │◄── HTTP ── LiteLLM gateway
+(input, context,    └──────────────────── presidio-anonymizer :3000 ─┘    (pre_call / post_call
+ output, audit)                                                            guardrails, every app)
+```
 
-Evaluation cases that only Presidio can satisfy (a name in a question, a named person in a retrieved document, an IBAN) carry `requires: presidio`. They are skipped in regex mode and run in a separate CI job with Presidio installed. On the regex backend those cases fail as expected: the name in the roster reaches the answer.
+- **Gateway layer (LiteLLM).** `presidio-pii-input` (`pre_call`) masks names, contacts, cards, IBANs and IP addresses before any prompt reaches a model, and blocks requests carrying a US SSN. `presidio-pii-output` (`post_call`) masks the response. Both are `default_on`, so every application behind the gateway gets them, not only this one. `output_parse_pii` is off: retrieved documents travel inside the prompt, and restoring masked values would put personal data from the corpus back into answers.
+- **Application layer (RAG API).** The gateway sees only what is sent to the model. The application also needs redaction where the gateway is not involved: the retrieval query, the offline demo gateway, and the answer it returns. It calls the same Presidio containers over HTTP (`PII_BACKEND=presidio`). The image carries no spaCy model, and recognizer changes happen in one place.
+- **Fail closed.** If Presidio is unreachable or answers with an unexpected payload, the request is blocked with `pii_check_unavailable_blocked`. An unchecked prompt never reaches retrieval or the model.
+- **Regex fallback** (`PII_BACKEND=regex`): e-mail, Luhn-valid card and phone patterns with no dependencies. It keeps the hash-locked install and offline unit tests self-contained. A fake HTTP server in the unit tests covers the Presidio adapter, including both fail-closed paths.
+
+Presidio is configured for English with entity types PERSON, EMAIL_ADDRESS, PHONE_NUMBER, CREDIT_CARD, IBAN_CODE, US_SSN and IP_ADDRESS. DATE_TIME, LOCATION and NRP are excluded on purpose, because policy text is full of dates and place-like nouns.
+
+Evaluation cases that only Presidio can satisfy (a name in a question, a named person in a retrieved document, an IBAN) carry `requires: presidio`. They are skipped in regex mode and run in a separate CI job against the Presidio containers. On the regex backend those cases fail as expected: the name in the roster reaches the answer.
 
 Injection rules run on normalized text (NFKC, invisible characters removed, case-folded, whitespace collapsed), so zero-width and full-width obfuscation do not bypass them. Each rule pairs an action verb with an instruction-like target to keep ordinary policy questions answerable. Credential-exfiltration wording is checked on documents and answers but not on questions, because a user asking "should I send my token to X?" is legitimate.
 
@@ -42,7 +53,8 @@ The evaluation suite holds adversarial and benign-probe cases next to grounded o
 - direct and indirect injection, PII in both directions, and prompt echo are covered by tests and by the evaluation gate;
 - the benign-probe category makes false positives visible; a rule change that blocks a legitimate question fails CI;
 - injection rules are English-only pattern rules and are bypassable by paraphrase, other languages, encodings, and multi-turn setups; they demonstrate where policy runs, not state-of-the-art injection detection;
-- Presidio's NER recall depends on the spaCy model; `en_core_web_sm` trades accuracy for image size, and `PRESIDIO_SPACY_MODEL` can select a larger model;
-- `requirements-presidio.txt` is version-bounded but not yet hash-locked like the core dependencies;
+- Presidio's NER recall depends on the spaCy model in the analyzer image; names that the model does not tag as PERSON pass through;
+- Presidio adds a network hop and a dependency on two more services; fail-closed means a Presidio outage stops the assistant, which is the intended trade-off;
+- the Presidio and LiteLLM images are referenced by tag, not yet by digest like the other images;
 - chunk-level quarantine drops a whole chunk, including any useful text around the injected instruction;
-- the `Guardrails` methods are the substitution point for a trained prompt-injection classifier, as `PiiRedactor` already is for personal data; the verdict codes and evaluation cases stay the same.
+- the `Guardrails` methods are the substitution point for a trained prompt-injection classifier, as `PiiRedactor` already is for personal data; LiteLLM's guardrail list is the matching place at the gateway layer.

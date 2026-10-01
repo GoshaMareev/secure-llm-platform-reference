@@ -1,19 +1,31 @@
-"""Personal-data redaction backed by Microsoft Presidio (English).
+"""Personal-data redaction through Presidio Analyzer and Anonymizer services (English).
+
+Presidio runs as two containers shared by every consumer on the platform: this
+service calls them over HTTP, and the LiteLLM gateway calls the same pair for
+its own pre- and post-call guardrails. The application image therefore carries
+no spaCy model, and detection rules change in one place.
 
 Presidio combines spaCy named-entity recognition (names) with validated
 recognizers (Luhn for cards, IBAN checksum, phone-number parsing, SSN rules),
-which a regex alone cannot do. Install ``requirements-presidio.txt`` and the
-spaCy model before selecting ``PII_BACKEND=presidio``.
+which a regex alone cannot do.
 """
 
 from __future__ import annotations
 
+import json
 import os
+from typing import Any
+from urllib.error import URLError
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
+
+from .guardrails import PiiServiceError
 
 # Entity types this deployment treats as personal data, mapped to the kind used
 # in placeholders and verdicts. DATE_TIME, LOCATION and NRP are deliberately
 # excluded: policy text is full of dates and place-like nouns, and redacting
-# them would destroy answers without protecting a person.
+# them would destroy answers without protecting a person. Keep this list in
+# sync with gateway/litellm-config.yaml.
 ENTITY_KINDS = {
     "PERSON": "person",
     "EMAIL_ADDRESS": "email",
@@ -23,54 +35,103 @@ ENTITY_KINDS = {
     "US_SSN": "ssn",
     "IP_ADDRESS": "ip",
 }
-DEFAULT_MODEL = "en_core_web_sm"
 DEFAULT_SCORE_THRESHOLD = 0.4
+MAX_RESPONSE_BYTES = 1_000_000
 
 
-class PresidioPiiRedactor:
+def _validated_base(url: str, name: str) -> str:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError(f"{name} must be an HTTP(S) URL without embedded credentials")
+    return url.rstrip("/")
+
+
+class PresidioHttpRedactor:
     def __init__(
         self,
         *,
-        model: str | None = None,
+        analyzer_url: str | None = None,
+        anonymizer_url: str | None = None,
         score_threshold: float = DEFAULT_SCORE_THRESHOLD,
+        timeout_seconds: float = 5.0,
     ) -> None:
-        try:
-            from presidio_analyzer import AnalyzerEngine
-            from presidio_analyzer.nlp_engine import NlpEngineProvider
-            from presidio_anonymizer import AnonymizerEngine
-            from presidio_anonymizer.entities import OperatorConfig
-        except ImportError as error:  # pragma: no cover - depends on optional install
-            raise RuntimeError(
-                "PII_BACKEND=presidio requires requirements-presidio.txt and a spaCy English model"
-            ) from error
-
-        model_name = model or os.getenv("PRESIDIO_SPACY_MODEL", DEFAULT_MODEL)
-        nlp_engine = NlpEngineProvider(
-            nlp_configuration={
-                "nlp_engine_name": "spacy",
-                "models": [{"lang_code": "en", "model_name": model_name}],
-            }
-        ).create_engine()
-        # Built once: loading the spaCy pipeline is the expensive part.
-        self._analyzer = AnalyzerEngine(nlp_engine=nlp_engine, supported_languages=["en"])
-        self._anonymizer = AnonymizerEngine()
+        self._analyzer = _validated_base(
+            analyzer_url or os.getenv("PRESIDIO_ANALYZER_URL", "http://127.0.0.1:5002"),
+            "PRESIDIO_ANALYZER_URL",
+        )
+        self._anonymizer = _validated_base(
+            anonymizer_url or os.getenv("PRESIDIO_ANONYMIZER_URL", "http://127.0.0.1:5001"),
+            "PRESIDIO_ANONYMIZER_URL",
+        )
         self._threshold = score_threshold
+        self._timeout = timeout_seconds
         self._operators = {
-            entity: OperatorConfig("replace", {"new_value": f"[REDACTED_{kind.upper()}]"})
+            entity: {"type": "replace", "new_value": f"[REDACTED_{kind.upper()}]"}
             for entity, kind in ENTITY_KINDS.items()
         }
 
-    def redact(self, text: str) -> tuple[str, tuple[str, ...]]:
-        findings = self._analyzer.analyze(
-            text=text,
-            language="en",
-            entities=list(ENTITY_KINDS),
-            score_threshold=self._threshold,
+    def _post(self, url: str, payload: dict[str, Any]) -> Any:
+        request = Request(  # noqa: S310 - operator-configured service URL, scheme validated
+            url,
+            data=json.dumps(payload).encode(),
+            headers={"content-type": "application/json"},
+            method="POST",
         )
+        try:
+            with urlopen(request, timeout=self._timeout) as response:  # noqa: S310
+                body = response.read(MAX_RESPONSE_BYTES + 1)
+        except (URLError, TimeoutError, OSError) as error:
+            raise PiiServiceError(f"Presidio request failed: {url}") from error
+        if len(body) > MAX_RESPONSE_BYTES:
+            raise PiiServiceError("Presidio response exceeds the size limit")
+        try:
+            return json.loads(body)
+        except ValueError as error:
+            raise PiiServiceError("Presidio returned invalid JSON") from error
+
+    def redact(self, text: str) -> tuple[str, tuple[str, ...]]:
+        findings = self._post(
+            f"{self._analyzer}/analyze",
+            {
+                "text": text,
+                "language": "en",
+                "entities": list(ENTITY_KINDS),
+                "score_threshold": self._threshold,
+            },
+        )
+        if not isinstance(findings, list):
+            raise PiiServiceError("Presidio analyzer returned an unexpected payload")
+        try:
+            findings = [item for item in findings if item.get("entity_type") in ENTITY_KINDS]
+            analyzer_results = [
+                {
+                    "start": int(item["start"]),
+                    "end": int(item["end"]),
+                    "score": float(item["score"]),
+                    "entity_type": item["entity_type"],
+                }
+                for item in findings
+            ]
+        except (AttributeError, KeyError, TypeError, ValueError) as error:
+            raise PiiServiceError("Presidio analyzer returned malformed findings") from error
         if not findings:
             return text, ()
-        result = self._anonymizer.anonymize(
-            text=text, analyzer_results=findings, operators=self._operators
+        result = self._post(
+            f"{self._anonymizer}/anonymize",
+            {
+                "text": text,
+                "analyzer_results": analyzer_results,
+                "anonymizers": self._operators,
+            },
         )
-        kinds = tuple(dict.fromkeys(ENTITY_KINDS[item.entity_type] for item in result.items))
-        return result.text, kinds
+        if not isinstance(result, dict) or not isinstance(result.get("text"), str):
+            raise PiiServiceError("Presidio anonymizer returned an unexpected payload")
+        items = result.get("items") or findings
+        kinds = tuple(
+            dict.fromkeys(
+                ENTITY_KINDS[item["entity_type"]]
+                for item in items
+                if isinstance(item, dict) and item.get("entity_type") in ENTITY_KINDS
+            )
+        )
+        return result["text"], kinds

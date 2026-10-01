@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-import importlib.util
+import json
+import os
 import sys
 import tempfile
+import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,11 +21,13 @@ from secure_rag.guardrails import (  # noqa: E402
     OUTPUT_INJECTION_ECHO,
     OUTPUT_PII,
     OUTPUT_PROMPT_LEAK,
+    PII_CHECK_UNAVAILABLE,
     Guardrails,
     build_pii_redactor,
     normalize,
     redact_pii,
 )
+from secure_rag.presidio_pii import PresidioHttpRedactor  # noqa: E402
 from secure_rag.retrieval import Retriever, load_glossary  # noqa: E402
 from secure_rag.service import POLICY_REFUSAL, RAGService  # noqa: E402
 
@@ -100,14 +105,93 @@ class PiiBackendTests(unittest.TestCase):
         self.assertEqual(decision.verdicts, (INPUT_PII,))
 
 
-PRESIDIO_AVAILABLE = importlib.util.find_spec("presidio_analyzer") is not None
+class _FakePresidio(BaseHTTPRequestHandler):
+    """Speaks the Presidio REST contract: /analyze returns spans, /anonymize replaces them."""
+
+    broken = False
+
+    def log_message(self, *args: object) -> None:  # keep test output quiet
+        return
+
+    def do_POST(self) -> None:  # noqa: N802 - http.server naming
+        payload = json.loads(self.rfile.read(int(self.headers["content-length"])))
+        if self.broken:
+            body: object = {"unexpected": True}
+        elif self.path == "/analyze":
+            text = payload["text"]
+            body = [
+                {"entity_type": entity, "start": text.index(value), "end": text.index(value) + len(value),
+                 "score": 0.85}
+                for entity, value in (("PERSON", "Dana Whitfield"), ("EMAIL_ADDRESS", "jane.doe@example.com"))
+                if value in text
+            ]
+        else:
+            text = payload["text"]
+            items = []
+            for result in sorted(payload["analyzer_results"], key=lambda item: -item["start"]):
+                replacement = payload["anonymizers"][result["entity_type"]]["new_value"]
+                text = text[: result["start"]] + replacement + text[result["end"] :]
+                items.append({"entity_type": result["entity_type"], "operator": "replace"})
+            body = {"text": text, "items": items}
+        encoded = json.dumps(body).encode()
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(encoded)))
+        self.end_headers()
+        self.wfile.write(encoded)
 
 
-@unittest.skipUnless(PRESIDIO_AVAILABLE, "install requirements-presidio.txt to run Presidio tests")
-class PresidioRedactorTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.redactor = build_pii_redactor("presidio")
+class PresidioHttpRedactorTests(unittest.TestCase):
+    def setUp(self) -> None:
+        _FakePresidio.broken = False
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), _FakePresidio)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        base = f"http://127.0.0.1:{self.server.server_port}"
+        self.redactor = PresidioHttpRedactor(analyzer_url=base, anonymizer_url=base, timeout_seconds=2)
+
+    def tearDown(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+
+    def test_spans_from_analyzer_are_replaced_with_typed_placeholders(self) -> None:
+        text, kinds = self.redactor.redact("Dana Whitfield wrote from jane.doe@example.com.")
+        self.assertEqual(text, "[REDACTED_PERSON] wrote from [REDACTED_EMAIL].")
+        self.assertEqual(set(kinds), {"person", "email"})
+
+    def test_clean_text_skips_the_anonymizer(self) -> None:
+        sentence = "Emergency access requires approval from the incident commander."
+        self.assertEqual(self.redactor.redact(sentence), (sentence, ()))
+
+    def test_unexpected_payload_fails_closed(self) -> None:
+        _FakePresidio.broken = True
+        decision = Guardrails(pii=self.redactor).check_input("Who approves access?")
+        self.assertTrue(decision.blocked)
+        self.assertEqual(decision.verdicts, (PII_CHECK_UNAVAILABLE,))
+
+    def test_unreachable_service_fails_closed_on_input_and_output(self) -> None:
+        closed = PresidioHttpRedactor(
+            analyzer_url="http://127.0.0.1:9", anonymizer_url="http://127.0.0.1:9", timeout_seconds=0.5
+        )
+        guard = Guardrails(pii=closed)
+        self.assertEqual(guard.check_input("Who approves access?").verdicts, (PII_CHECK_UNAVAILABLE,))
+        output = guard.check_output("The incident commander approves access.")
+        self.assertTrue(output.blocked)
+        self.assertEqual(output.verdicts, (PII_CHECK_UNAVAILABLE,))
+
+    def test_credentials_in_service_url_are_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "without embedded credentials"):
+            PresidioHttpRedactor(analyzer_url="http://user:pw@presidio:3000")
+
+
+@unittest.skipUnless(
+    os.getenv("PRESIDIO_INTEGRATION") == "1",
+    "set PRESIDIO_INTEGRATION=1 with the Presidio containers running (make presidio-up)",
+)
+class PresidioLiveTests(unittest.TestCase):
+    """Runs against the real Presidio containers from infra/docker-compose.yml."""
+
+    def setUp(self) -> None:
+        self.redactor = build_pii_redactor("presidio")
 
     def test_names_and_validated_identifiers_are_redacted(self) -> None:
         text, kinds = self.redactor.redact(

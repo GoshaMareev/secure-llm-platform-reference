@@ -11,15 +11,6 @@ RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --no-create-home a
 COPY requirements.lock ./
 RUN pip install --no-cache-dir --require-hashes --requirement requirements.lock
 
-# Presidio PII backend and its spaCy English model. Build with
-# --build-arg INSTALL_PRESIDIO=false for a minimal image that uses PII_BACKEND=regex.
-ARG INSTALL_PRESIDIO=true
-COPY requirements-presidio.txt ./
-RUN if [ "$INSTALL_PRESIDIO" = "true" ]; then \
-      pip install --no-cache-dir --requirement requirements-presidio.txt \
-      && python -m spacy download en_core_web_sm; \
-    fi
-
 COPY ingestion ./ingestion
 COPY gateway ./gateway
 COPY sample-data ./sample-data
