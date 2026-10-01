@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from secure_rag.gateway import DemoGateway
-from secure_rag.guardrails import Guardrails
+from secure_rag.guardrails import Guardrails, build_pii_redactor
 from secure_rag.retrieval import Retriever, load_glossary
 from secure_rag.service import Answer, RAGService
 
@@ -85,6 +85,11 @@ def evaluate_case(service: RAGService, case: dict[str, Any]) -> CaseResult:
     )
 
 
+def applicable(case: dict[str, Any], pii_backend: str) -> bool:
+    """Cases marked ``requires: presidio`` test detections the regex fallback cannot make."""
+    return case.get("requires") in (None, pii_backend)
+
+
 def summarize(results: list[CaseResult]) -> dict[str, Any]:
     by_category: dict[str, list[CaseResult]] = defaultdict(list)
     for result in results:
@@ -126,8 +131,8 @@ def _ratio(pair: tuple[int, int]) -> str:
     return f"{numerator}/{denominator} ({numerator / denominator:.0%})"
 
 
-def render_markdown(guarded: dict[str, Any], baseline: dict[str, Any] | None) -> str:
-    lines = ["# Evaluation report", ""]
+def render_markdown(guarded: dict[str, Any], baseline: dict[str, Any] | None, *, pii_backend: str) -> str:
+    lines = ["# Evaluation report", "", f"PII backend: `{pii_backend}`.", ""]
     lines.append(
         "Synthetic corpus, deterministic offline retrieval and the extractive demo gateway. "
         "These figures verify controls; they are not production answer-quality metrics."
@@ -171,14 +176,14 @@ def render_markdown(guarded: dict[str, Any], baseline: dict[str, Any] | None) ->
     return "\n".join(lines)
 
 
-def build_service(index: Path, *, guardrails: bool) -> RAGService:
+def build_service(index: Path, *, guardrails: bool, pii_backend: str = "regex") -> RAGService:
     glossary = load_glossary(Path("sample-data/glossary.json"))
     return RAGService(
         Retriever(index, glossary=glossary),
         DemoGateway(glossary),
         min_confidence=0.34,
         top_k=3,
-        guardrails=Guardrails() if guardrails else None,
+        guardrails=Guardrails(pii=build_pii_redactor(pii_backend)) if guardrails else None,
     )
 
 
@@ -216,11 +221,19 @@ def main() -> None:
     parser.add_argument("--compare", action="store_true", help="also run without guardrails for the report")
     parser.add_argument("--report", type=Path, help="write a Markdown summary to this path")
     parser.add_argument("--quiet", action="store_true", help="print only the summary")
+    parser.add_argument(
+        "--pii-backend", choices=("regex", "presidio"), default="regex", help="personal-data redactor"
+    )
     args = parser.parse_args()
 
-    cases = [json.loads(line) for line in args.cases.read_text(encoding="utf-8").splitlines() if line.strip()]
+    all_cases = [
+        json.loads(line) for line in args.cases.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    cases = [case for case in all_cases if applicable(case, args.pii_backend)]
+    skipped = len(all_cases) - len(cases)
     guarded_mode = not args.no_guardrails
-    results = run(build_service(args.index, guardrails=guarded_mode), cases, verbose=not args.quiet)
+    service = build_service(args.index, guardrails=guarded_mode, pii_backend=args.pii_backend)
+    results = run(service, cases, verbose=not args.quiet)
     summary = summarize(results)
     baseline = None
     if args.compare and guarded_mode:
@@ -228,7 +241,9 @@ def main() -> None:
 
     for name, pair in summary["categories"].items():
         print(f"{name:<20} {_ratio(pair)}")
-    print(f"summary: {summary['passed']}/{summary['total']} passed")
+    print(f"summary: {summary['passed']}/{summary['total']} passed (pii backend: {args.pii_backend})")
+    if skipped:
+        print(f"skipped: {skipped} cases that need another PII backend")
     for case_id, passed, _ in summary["known_limitations"]:
         print(f"known limitation: {case_id} ({'now passes' if passed else 'fails'})")
     print(f"attack success: {_ratio(summary['attack_success'])}")
@@ -238,7 +253,9 @@ def main() -> None:
               f"attack success {_ratio(baseline['attack_success'])}")
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
-        args.report.write_text(render_markdown(summary, baseline), encoding="utf-8")
+        args.report.write_text(
+            render_markdown(summary, baseline, pii_backend=args.pii_backend), encoding="utf-8"
+        )
 
     # Only the guarded pipeline is a gate. The unguarded run is a measurement.
     if guarded_mode:

@@ -1,9 +1,10 @@
-"""Deterministic policy checks around the retrieval and generation path.
+"""Policy checks around the retrieval and generation path (English-language deployments).
 
-The checks are intentionally transparent heuristics. They show where policy runs
-(input, retrieved context, output), what each stage may do (block, redact,
-quarantine), and how verdicts are recorded. A production deployment would put a
-trained classifier behind the same ``Guardrails`` interface; see ADR 0004.
+Injection checks are transparent pattern rules on normalized text. Personal-data
+redaction is pluggable: Microsoft Presidio (NER plus validated recognizers) in
+the container image, or a dependency-free regex redactor for offline tests.
+The checks show where policy runs (input, retrieved context, output), what each
+stage may do (block, redact, quarantine), and how verdicts are recorded; see ADR 0004.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import re
 import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Protocol
 
 from .gateway import SYSTEM_PROMPT
 from .retrieval import SearchResult
@@ -79,15 +81,6 @@ INJECTION_RULES = (
         r"|\b(?:pretend|act)\s+(?:to be|as|like)\s+(?:an?\s+)?"
         r"(?:unrestricted|unfiltered|uncensored|jailbroken|different)\b",
     ),
-    _rule(
-        "override-instructions-ru",
-        r"\b(?:игнорируй|проигнорируй|игнорировать|забудь|отмени)\b[^.\n]{0,40}?"
-        r"\b(?:инструкци\w*|правил\w*|указани\w*|ограничени\w*)",
-    ),
-    _rule(
-        "reveal-system-prompt-ru",
-        r"\b(?:покажи|выведи|раскрой|повтори)\b[^.\n]{0,30}?\bсистемн\w*\s+(?:промпт\w*|инструкци\w*)",
-    ),
 )
 
 # Text that tells the *reader* to hand over secrets. Asked by a user it is a
@@ -128,6 +121,32 @@ def _luhn_valid(digits: str) -> bool:
                 value -= 9
         total += value
     return total % 10 == 0
+
+
+class PiiRedactor(Protocol):
+    """Replaces personal data with ``[REDACTED_<KIND>]`` placeholders.
+
+    Returns the redacted text and the distinct kinds found (lower-case, e.g. "email").
+    """
+
+    def redact(self, text: str) -> tuple[str, tuple[str, ...]]: ...
+
+
+class RegexPiiRedactor:
+    """Dependency-free fallback: e-mail, Luhn-valid card numbers and phone numbers only."""
+
+    def redact(self, text: str) -> tuple[str, tuple[str, ...]]:
+        return redact_pii(text)
+
+
+def build_pii_redactor(backend: str) -> PiiRedactor:
+    if backend == "regex":
+        return RegexPiiRedactor()
+    if backend == "presidio":
+        from .presidio_pii import PresidioPiiRedactor
+
+        return PresidioPiiRedactor()
+    raise ValueError("PII backend must be regex or presidio")
 
 
 def redact_pii(text: str) -> tuple[str, tuple[str, ...]]:
@@ -188,7 +207,8 @@ class OutputDecision:
 class Guardrails:
     """Three checkpoints: user input, retrieved context, and model output."""
 
-    def __init__(self, *, system_prompt: str = SYSTEM_PROMPT) -> None:
+    def __init__(self, *, pii: PiiRedactor | None = None, system_prompt: str = SYSTEM_PROMPT) -> None:
+        self._pii = pii or RegexPiiRedactor()
         # A long, distinctive fragment of the operator prompt. Seeing it in an
         # answer means the model repeated its instructions.
         self._prompt_fingerprint = normalize(system_prompt)[:48]
@@ -197,7 +217,7 @@ class Guardrails:
         rules = _matches(question, INJECTION_RULES)
         if rules:
             return InputDecision(text="", blocked=True, verdicts=(INPUT_INJECTION,), rules=rules)
-        redacted, kinds = redact_pii(question)
+        redacted, kinds = self._pii.redact(question)
         verdicts = (INPUT_PII,) if kinds else ()
         return InputDecision(text=redacted, blocked=False, verdicts=verdicts, rules=())
 
@@ -218,5 +238,5 @@ class Guardrails:
             return OutputDecision(text="", blocked=True, verdicts=(OUTPUT_PROMPT_LEAK,))
         if _matches(answer, (*INJECTION_RULES, *EXFILTRATION_RULES)):
             return OutputDecision(text="", blocked=True, verdicts=(OUTPUT_INJECTION_ECHO,))
-        redacted, kinds = redact_pii(answer)
+        redacted, kinds = self._pii.redact(answer)
         return OutputDecision(text=redacted, blocked=False, verdicts=(OUTPUT_PII,) if kinds else ())

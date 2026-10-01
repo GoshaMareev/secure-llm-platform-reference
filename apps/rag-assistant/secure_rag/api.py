@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from .audit import AuditWriter, OperationalEvent, OperationalLogger
 from .gateway import DemoGateway, OpenAICompatibleGateway
-from .guardrails import Guardrails
+from .guardrails import Guardrails, build_pii_redactor
 from .retrieval import Retriever, load_glossary
 from .service import RAGService
 from .settings import Settings
@@ -64,7 +64,9 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         gateway,
         min_confidence=config.min_confidence,
         top_k=config.top_k,
-        guardrails=Guardrails() if config.guardrails_enabled else None,
+        guardrails=(
+            Guardrails(pii=build_pii_redactor(config.pii_backend)) if config.guardrails_enabled else None
+        ),
     )
     operations = OperationalLogger(config.runtime_log_path)
     audit = AuditWriter(

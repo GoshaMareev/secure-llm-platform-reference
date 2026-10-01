@@ -48,7 +48,7 @@ An external document in the corpus contains instructions addressed to the model 
 
 ### Personal data in prompts and answers
 
-A caller pastes contact or payment details, or a retrieved document contains them. E-mail addresses, Luhn-valid card numbers and phone numbers are replaced with typed placeholders before the question reaches retrieval and the model, and again in the answer.
+A caller pastes names, contact or payment details, or a retrieved document contains them. With the Presidio backend, names, e-mail addresses, phone numbers, validated card numbers, IBANs, US SSNs and IP addresses are replaced with typed placeholders before the question reaches retrieval and the model, and again in the answer. The regex fallback covers e-mail, card and phone only.
 
 ### Unsupported answer
 
@@ -61,8 +61,8 @@ A question has weak retrieval support. The confidence gate returns a refusal bef
 - the deterministic vectorizer is for offline verification, not semantic quality;
 - audit transport to SIEM is documented but intentionally not implemented;
 - local JSONL files are not a tamper-evident audit store;
-- guardrails are deterministic pattern rules (ADR 0004): they cover common phrasings and obfuscations and are bypassable by paraphrase or other languages; no trained prompt-injection classifier, DLP service or malware scanner is bundled;
-- PII redaction covers e-mail, payment card and phone formats only;
+- injection guardrails are English-only pattern rules (ADR 0004): they cover common phrasings and obfuscations and are bypassable by paraphrase or other languages; no trained prompt-injection classifier or malware scanner is bundled;
+- PII redaction is English-only; its recall depends on the configured spaCy model, and the regex fallback misses names entirely;
 - Docker Compose demonstrates boundaries but is not a production orchestrator.
 
 ## Secure production requirements

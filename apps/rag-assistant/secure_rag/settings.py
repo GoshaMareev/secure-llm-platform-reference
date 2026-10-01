@@ -26,6 +26,7 @@ class Settings:
     model_api_key: str
     require_auth_header: bool
     guardrails_enabled: bool = True
+    pii_backend: str = "regex"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -51,6 +52,9 @@ class Settings:
             or runtime_dir in audit_dir.parents
             or audit_dir in runtime_dir.parents
         )
+        pii_backend = os.getenv("PII_BACKEND", "regex").casefold()
+        if pii_backend not in {"regex", "presidio"}:
+            raise ValueError("PII_BACKEND must be regex or presidio")
         if paths_overlap:
             raise ValueError("RUNTIME_LOG_PATH and AUDIT_LOG_PATH must be separate")
         return cls(
@@ -67,4 +71,5 @@ class Settings:
             model_api_key=os.getenv("OPENAI_COMPATIBLE_API_KEY", ""),
             require_auth_header=_bool_env("REQUIRE_AUTH_HEADER"),
             guardrails_enabled=_bool_env("GUARDRAILS_ENABLED", default=True),
+            pii_backend=pii_backend,
         )

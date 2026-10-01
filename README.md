@@ -10,7 +10,7 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 - metadata-scoped hybrid retrieval with deterministic offline embeddings;
 - glossary expansion, reranking, and a fallback when reranking reduces query coverage;
 - confidence-based grounded refusal and source attribution;
-- layered guardrails: direct-injection blocking, quarantine of poisoned retrieved documents, PII redaction in prompts and answers, and system-prompt echo detection ([ADR 0004](docs/decisions/0004-layered-guardrails.md));
+- layered guardrails: direct-injection blocking, quarantine of poisoned retrieved documents, [Microsoft Presidio](https://github.com/microsoft/presidio) PII redaction in prompts and answers, and system-prompt echo detection ([ADR 0004](docs/decisions/0004-layered-guardrails.md));
 - an explicit gateway boundary with a safe offline demo backend;
 - an OAuth2 Proxy front door for Microsoft Entra ID (OIDC) with optional group authorization;
 - operational logs that never contain prompts or answers;
@@ -63,6 +63,8 @@ curl -s http://127.0.0.1:8000/v1/ask \
   -d '{"question":"Who can approve emergency production access?","filters":{"audience":"engineers"}}'
 ```
 
+Local runs default to the dependency-free regex PII redactor. To use Presidio, install `requirements-presidio.txt`, run `python -m spacy download en_core_web_sm`, and set `PII_BACKEND=presidio`. The container image installs Presidio and uses it by default.
+
 The default gateway is deterministic and offline. It makes the repository testable without downloading a model or sending data to a hosted API.
 
 ## Run the portfolio stack
@@ -84,24 +86,29 @@ For Entra setup, register a single-tenant web application with redirect URI `htt
 ## Evaluation
 
 ```bash
-make eval   # builds the index, runs every case with and without guardrails, writes evals/report.md
+make eval            # regex PII backend, no extra dependencies; writes evals/report.md
+make eval-presidio   # Presidio backend; needs requirements-presidio.txt and en_core_web_sm
 ```
 
-`evals/cases.jsonl` holds 37 cases in seven categories: grounded answers, metadata scope, out-of-scope refusals, direct prompt injection (including zero-width, full-width and Russian variants), indirect injection through a poisoned document, PII in questions and in retrieved context, and benign probes worded close to attack patterns. Each case states what must hold and what must not leak. CI fails on any case that is not listed as a known limitation.
+`evals/cases.jsonl` holds 39 English cases in seven categories: grounded answers, metadata scope, out-of-scope refusals, direct prompt injection (including zero-width and full-width obfuscation), indirect injection through a poisoned document, personal data in questions and in retrieved context, and benign probes worded close to attack patterns. Each case states what must hold and what must not leak. Every run also measures the same cases without guardrails. CI runs the suite twice, once per PII backend, and fails on any case that is not listed as a known limitation.
+
+Regex backend (36 applicable cases; 3 name and IBAN cases need Presidio):
 
 | Category | With guardrails | Without guardrails |
 |---|---|---|
 | grounded | 10/11 | 10/11 |
 | scope | 2/2 | 2/2 |
 | out of scope | 4/4 | 4/4 |
-| direct injection | 8/8 | 0/8 |
+| direct injection | 7/7 | 0/7 |
 | indirect injection | 3/3 | 0/3 |
 | PII | 3/4 | 0/4 |
 | benign probes | 4/5 | 4/5 |
-| **attack success** (lower is better) | **0/15** | 15/15 |
+| **attack success** (lower is better) | **0/14** | 14/14 |
 | **over-refusal** (lower is better) | **2/16** | 2/16 |
 
-Guardrails stop every adversarial case without adding a single refusal of an answerable question. The three remaining failures are retrieval misses, not guardrail misses, and are reported as known limitations rather than hidden: the lexical retriever does not connect paraphrases such as "how long does access last" with "access expires". They are the acceptance cases for a semantic-embedding backend.
+Guardrails stop every adversarial case without adding a single refusal of an answerable question. The Presidio-only cases show why the regex fallback is not enough: on regex, the on-call owner's name from the roster reaches the answer. The Presidio job publishes its report as the `eval-report-presidio` CI artifact.
+
+The three remaining failures are retrieval misses, not guardrail misses, and are reported as known limitations rather than hidden: the lexical retriever does not connect paraphrases such as "how long does access last" with "access expires".
 
 All figures come from a synthetic corpus, deterministic retrieval and an extractive demo gateway. They verify that controls behave as specified; they are not production answer-quality metrics.
 
@@ -151,6 +158,7 @@ tests/                    offline unit tests
 - generate an SBOM and dependency-license report, then repeat the security review against the hardened revision;
 - add a semantic-embedding backend (pgvector) and clear the known-limitation evaluation cases;
 - put a trained prompt-injection classifier behind the `Guardrails` interface and compare it on the same cases;
+- hash-lock `requirements-presidio.txt` and the spaCy model like the core dependencies;
 - connect the repository to the portfolio site after the final public-content review.
 
 ## Scope and limitations
