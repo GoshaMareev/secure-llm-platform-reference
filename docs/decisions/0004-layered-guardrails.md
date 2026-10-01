@@ -54,6 +54,7 @@ The evaluation suite holds adversarial and benign-probe cases next to grounded o
 - the benign-probe category makes false positives visible; a rule change that blocks a legitimate question fails CI;
 - injection rules are English-only pattern rules and are bypassable by paraphrase, other languages, encodings, and multi-turn setups; they demonstrate where policy runs, not state-of-the-art injection detection;
 - Presidio's NER recall depends on the spaCy model in the analyzer image; names that the model does not tag as PERSON pass through;
+- Presidio's e-mail recognizer validates the top-level domain against the public suffix list, so addresses on non-public domains (`.example`, `.local`, `.corp`, an internal mail zone) are not detected; this surfaced in the evaluation, where the regex fallback caught an address Presidio missed. Deployments with internal mail domains need a custom recognizer;
 - Presidio adds a network hop and a dependency on two more services; fail-closed means a Presidio outage stops the assistant, which is the intended trade-off;
 - the Presidio and LiteLLM images are referenced by tag, not yet by digest like the other images;
 - chunk-level quarantine drops a whole chunk, including any useful text around the injected instruction;

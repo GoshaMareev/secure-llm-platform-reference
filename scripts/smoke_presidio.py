@@ -61,6 +61,12 @@ def main() -> None:
         passed = False
     except URLError:
         print(f"[skip] LiteLLM gateway not reachable at {gateway}; start it with make gateway-up")
+    except (ConnectionError, OSError) as error:
+        # The port answered but the connection dropped: usually the gateway crashed
+        # or is still starting. Its logs say which.
+        print(f"[FAIL] LiteLLM gateway dropped the connection ({type(error).__name__}).")
+        print("       Check: docker compose -f infra/docker-compose.yml logs litellm --tail 100")
+        passed = False
 
     raise SystemExit(0 if passed else 1)
 
