@@ -6,7 +6,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field, field_validator
 
@@ -55,6 +56,14 @@ class AskResponse(BaseModel):
     citations: list[dict[str, str]]
 
 
+class SessionResponse(BaseModel):
+    role: str
+    audiences: list[str]
+    auth_mode: str
+    gateway_mode: str
+    guardrails_enabled: bool
+
+
 def build_app(settings: Settings | None = None) -> FastAPI:
     config = settings or Settings.from_env()
     policy = IdentityPolicy(config.identity_policy_path)
@@ -90,6 +99,57 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         include_prompt=config.audit_include_prompt,
     )
     app = FastAPI(title="Secure LLM Platform Reference", version="0.1.0")
+    web = Path(__file__).parent / "web"
+    app.mount("/demo-assets", StaticFiles(directory=web), name="demo-assets")
+
+    def actor_for(request: Request) -> str:
+        return (
+            request.headers.get("x-forwarded-user", "")
+            if config.require_auth_header
+            else config.local_actor_id
+        )
+
+    @app.middleware("http")
+    async def demo_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        if request.url.path == "/" or request.url.path.startswith("/demo-assets/"):
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
+                "img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+            )
+            response.headers["Referrer-Policy"] = "no-referrer"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Cache-Control"] = "no-store"
+        if request.url.path.startswith("/v1/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.get("/", include_in_schema=False)
+    def demo() -> FileResponse:
+        return FileResponse(web / "index.html")
+
+    @app.get("/v1/session", response_model=SessionResponse)
+    def session(request: Request) -> SessionResponse:
+        actor = actor_for(request)
+        if config.require_auth_header and not actor:
+            raise HTTPException(status_code=401, detail="Authenticated proxy header required")
+        try:
+            scope = policy.scope_for(actor)
+        except PermissionError as error:
+            raise HTTPException(status_code=403, detail="Identity has no access policy") from error
+        role = (
+            "engineer"
+            if "engineers" in scope.audiences
+            else ("reader" if scope.audiences == frozenset({"all"}) else "scoped")
+        )
+        return SessionResponse(
+            role=role,
+            audiences=sorted(scope.audiences),
+            auth_mode="proxy" if config.require_auth_header else "local",
+            gateway_mode=config.gateway_mode,
+            guardrails_enabled=config.guardrails_enabled,
+        )
 
     @app.middleware("http")
     async def limit_request_body(request: Request, call_next):
@@ -133,11 +193,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
         refused = True
         verdicts: tuple[str, ...] = ()
         audit_written = False
-        actor_id = (
-            request.headers.get("x-forwarded-user", "")
-            if config.require_auth_header
-            else config.local_actor_id
-        )
+        actor_id = actor_for(request)
         try:
             if config.require_auth_header and not request.headers.get("x-forwarded-user"):
                 status = 401

@@ -25,7 +25,28 @@ The reader's implicit-denial and public-policy requests also quarantined an
 injected fictional context document (`context_injection_quarantined`). They
 returned no restricted source and did not follow its instruction.
 
-Automated checks: 63 Python tests (two live Presidio tests skipped in the offline
+## Browser workspace validation
+
+The workspace at `/` was checked through real Google sessions on 2026-10-03:
+engineer answer, unsupported-question refusal, direct-injection block, reader
+implicit refusal, reader filter/body escalation denial, and reader public-policy
+answer. All six browser requests had correlated operational/audit events with no
+raw prompt or answer in either stream. Both roles were read from `/v1/session`;
+no browser role selector or privileged log endpoint was introduced.
+
+The OAuth client credential was rotated locally. Fresh callbacks succeeded with
+the replacement secret; the old credential was disabled by the operator. Secrets
+and account policy remain outside Git and this report contains no credential values.
+
+Unauthenticated `/` navigation redirects to Google. `/v1/session` and `/v1/ask`
+return 401, including requests containing a spoofed forwarded identity header.
+The UI's 401 state was separately checked with a protected local fixture: asking
+was disabled and a sign-in action appeared. Browser checks of the local reader
+fixture verified result clearing on question changes, request-ID copying and
+responsive layout at 390 px and 1440 px without horizontal overflow. These local
+fixture checks do not substitute for Google callback verification.
+
+Automated checks: 67 Python tests (two live Presidio tests skipped in the offline
 run, then passed in the 21-test Presidio suite), Ruff, five offline HTTP
 walkthrough scenarios, publication scan including Git history, merged Compose
 validation and the pinned proxy's `--config-test` all passed. CI now repeats the

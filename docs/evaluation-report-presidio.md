@@ -40,7 +40,7 @@ Only explicitly listed quality failures are waived. New failures and all securit
 - `sample-data/identity-policy.json`: `267080a64676af02ce531618167409e0b5641c32ccf302760170d4884319e18c`
 - `evals/run.py`: `a3510c19025ba96faae1b0a201ee50a567d1dc22e772287a42c0839ef907d69f`
 - `apps/rag-assistant/secure_rag/__init__.py`: `e5e5758dde1df8cd0c964298ed4c66b156725f0b4f74dba3bb7e4a32ffd31e7e`
-- `apps/rag-assistant/secure_rag/api.py`: `27a492e294f09d353e7fe1f1cd9aa3311fad8a67bdd6ec7c386b0d08be47597b`
+- `apps/rag-assistant/secure_rag/api.py`: `9166c3d61eedd509ea18b5e87f1b6891f3f4593850ce437ecdec062f026de594`
 - `apps/rag-assistant/secure_rag/audit.py`: `eba3b01e492daed506074565af5321ac50342e74aa39ab52730ba0ed831a0122`
 - `apps/rag-assistant/secure_rag/authorization.py`: `8b82d9d815a17fbb604fbbfc0edfd5efd21fd0c3285feeea21f75fc4421dce8c`
 - `apps/rag-assistant/secure_rag/gateway.py`: `cf6b1cb1dec67388acdfce772fa91130f996f20ba856b159efacf4745c14d281`
@@ -55,6 +55,6 @@ Only explicitly listed quality failures are waived. New failures and all securit
 - `ingestion/models.py`: `ea70db1024d35d083dfcfe08425488fee5656ce4d19f84b9a21993af2859fc0d`
 - `ingestion/store.py`: `efaa72c7de5ba96af8a4537497fee903a944a1523fe56c9299b770e64e494c2b`
 - `ingestion/vectorizer.py`: `923517ec004cf30573294f36e8cf81f466e8f5f68c07db07ebf9d253c3077a0e`
-- `infra/docker-compose.yml`: `76f1fbcea42028897818cdace132dd0d18b69d459b70303cb02acf023416bbf6`
+- `infra/docker-compose.yml`: `94e71f6ebc780d647f36b73ffd87e4396c783d78e1709b7ddc9cb4f22ea9091f`
 - `infra/presidio/recognizers.yaml`: `8db99eeac12d31f58c5119963903bc5d881b0a2d4423a404674fa918db4abb43`
 - `gateway/litellm-config.yaml`: `a7ff776e03a5b6a743e85acfdb37adf695004ce88146352b6af4c4f24fdbff3e`

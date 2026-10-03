@@ -76,7 +76,12 @@ accounts; Google may retain its own browser session.
 
 ## Check through the real proxy
 
-At <http://localhost:4180/docs>, expand `POST /v1/ask` and use **Try it out**.
+Start at <http://localhost:4180/> for the [browser workspace](demo-workspace.md).
+The presets submit the scenarios below and show sources, decisions and request IDs.
+Without a session, `/v1/` requests return 401 instead of redirecting an API fetch
+to Google; browser navigation to `/` still starts the login flow.
+
+For raw API inspection at <http://localhost:4180/docs>, expand `POST /v1/ask` and use **Try it out**.
 Ask `Who can approve emergency production access?` with `filters: {}`:
 the engineer gets a cited answer; the reader gets a refusal without restricted
 citations. As the reader, repeat with `filters: {"audience": "engineers"}` and

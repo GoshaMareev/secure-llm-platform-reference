@@ -1,5 +1,7 @@
 # Run the public reference
 
+For a two-minute presentation, use the [browser workspace walkthrough](demo-workspace.md).
+
 This walkthrough demonstrates selected decisions from the production case using fictional documents and identities. It includes a grounded answer, an unsupported question, document access denial, prompt-injection blocking, and operational/audit events joined by request ID.
 
 ## Offline HTTP walkthrough

@@ -31,6 +31,9 @@ jobs:
           python -m pip install ruff==0.16.6
           python -m ruff check apps ingestion evals tests scripts
 
+      - name: Check browser workspace JavaScript
+        run: node --check apps/rag-assistant/secure_rag/web/workspace.js
+
       - name: Run offline tests
         run: python -m unittest discover -s tests -v
 

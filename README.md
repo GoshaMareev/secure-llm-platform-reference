@@ -7,6 +7,7 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 
 ## What this demonstrates
 
+- a browser workspace with server-derived roles, scenario presets, cited answers and request IDs;
 - identity-derived document scope that caller filters can only narrow;
 - metadata-scoped hybrid retrieval with deterministic offline embeddings;
 - glossary expansion, reranking, and a fallback when reranking reduces query coverage;
@@ -59,7 +60,7 @@ PYTHONPATH=".:apps/rag-assistant" RAG_INDEX_PATH=.local/index.json \
   uvicorn secure_rag.api:build_app --factory --host 127.0.0.1 --port 8000
 ```
 
-Ask a question:
+Open **http://127.0.0.1:8000/** for the browser workspace, or ask from the terminal:
 
 ```bash
 curl -s http://127.0.0.1:8000/v1/ask \
@@ -90,7 +91,8 @@ For ordinary Google accounts, follow the [Google SSO local walkthrough](docs/goo
 It uses a separate Compose override, explicit login allowlist, private file-mounted
 credentials and an operator-owned policy keyed by stable Google IDs.
 The [local validation report](docs/google-sso-validation.md) records the completed
-two-account login and document access checks.
+two-account login and document access checks. Open **http://localhost:4180/**
+after setup for the [two-minute workspace walkthrough](docs/demo-workspace.md).
 
 ```bash
 cp .env.example .env
@@ -131,6 +133,10 @@ curl -s http://127.0.0.1:8000/v1/ask -H 'content-type: application/json' \
 
 ## Portfolio walkthrough
 
+Start with the [browser walkthrough](docs/demo-workspace.md): six short steps
+show an answer, a refusal, injection blocking and different document access for
+two Google accounts. The script below verifies the API and event correlation.
+
 ```bash
 make walkthrough
 ```
@@ -155,7 +161,7 @@ PUBLICATION_DENYLIST_FILE=/absolute/path/to/private-denylist.txt \
 ## Repository map
 
 ```text
-apps/rag-assistant/       API and orchestration
+apps/rag-assistant/       API, browser workspace and orchestration
 gateway/                  model-gateway interface and LiteLLM config with Presidio guardrails
 ingestion/                safe corpus loading, chunking, and index build
 evals/                    grounding, scope and adversarial cases; runner and report
