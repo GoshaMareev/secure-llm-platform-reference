@@ -66,6 +66,24 @@ class AuditTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 collector.store({**event, "verdict": "different"})
 
+    def test_cloudru_aggregate_event_is_durable_and_rejects_raw_payloads(self):
+        observation = {
+            **self.event, "event": "cloudru_pii_shadow", "mode": "shadow",
+            "stage": "input_context", "scope": "after_presidio", "status": "checked",
+            "text_count": 2, "changed_text_count": 1, "match_count": 1, "data_types": [3, 5],
+        }
+        append_event(self.root, "gateway", observation)
+        stored = json.loads((self.root / "gateway.audit.jsonl").read_text())
+        with patch.object(collector, "DATABASE", self.root / "scan-events.sqlite3"):
+            collector.store(stored)
+        for extra in (
+            {"text_count": "synthetic@example.test"}, {"data_types": ["original"]},
+            {"data_types": [True]}, {"match_count": -1}, {"scope": "raw text"},
+            {"changed_text_count": 3}, {"placeholders": [{"original": "secret"}]},
+        ):
+            with self.assertRaises(ValueError):
+                validate_event({**stored, **extra})
+
     def shipper(self, delivered):
         shipper = object.__new__(Shipper)
         shipper.spool = self.root

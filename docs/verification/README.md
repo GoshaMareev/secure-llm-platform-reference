@@ -14,6 +14,7 @@ without paid-provider keys. Hosted runs use separate budget-controlled operator 
 | Fault/load | 14,916 successful requests in600 s atc4; p95168.76 ms | [Load conditions and failures](load-results.md) |
 | Media | Natural candidate64/64; benign24/24; native8/8; portableRU stress rejected | [Privacy/recognition limits](media-results.md) |
 | Jev | 128 shadow cases; development6 missed risks and2 false alarms | [Language/task decision metrics](jev-results.md) |
+| Russian PII/secrets | Cloud.ru 35/50 full-value masks; benign14/14; 15 residual cases after Presidio; 7/7 live callback checks | [Measured pilot and misses](cloudru-pii-results.md), [aggregate JSON](cloudru-pii-results.json) |
 | Audit | Durable local spool; private mTLS recovery, replay deduplication | [Delivery evidence](audit-results.md) |
 | Supply chain | Syft1.54.0 app/site/11-image inventories plus models/OCR | [License notices](third-party-notices.md), [SBOM index](sbom-4aa3909/index.json) |
 | Security | Immutable foundation scan + supplemental reviews and disposition | [Review scope](security-review.md) |

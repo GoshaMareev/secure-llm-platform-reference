@@ -39,6 +39,11 @@ EVENT_FIELDS = {
     "resolved_model",
     "latency_ms",
     "cost_usd",
+    "scope",
+    "text_count",
+    "changed_text_count",
+    "match_count",
+    "data_types",
 }
 COMPONENTS = {"gateway", "webui"}
 
@@ -62,6 +67,19 @@ def validate_event(event):
         raise ValueError("invalid_audit_contract")
     for key in ("event_id", "request_id"):
         uuid.UUID(event[key])
+    if "scope" in event and event["scope"] != "after_presidio":
+        raise ValueError("invalid_scan_metadata")
+    for key in ("text_count", "changed_text_count", "match_count"):
+        if key in event and (type(event[key]) is not int or not 0 <= event[key] <= 262_144):
+            raise ValueError("invalid_scan_metadata")
+    if event.get("changed_text_count", 0) > event.get("text_count", 0):
+        raise ValueError("invalid_scan_metadata")
+    if "data_types" in event and (
+        not isinstance(event["data_types"], list)
+        or len(event["data_types"]) > 6
+        or any(type(item) is not int or item not in range(1, 7) for item in event["data_types"])
+    ):
+        raise ValueError("invalid_scan_metadata")
     # Generic metadata must never transport arbitrary client strings.
     for key in ("event", "outcome", "verdict", "stage", "status", "reason", "model_alias", "blocked_role"):
         value = event.get(key)

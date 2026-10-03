@@ -12,6 +12,7 @@ try:
     import jwt
     from fastapi import HTTPException
     from reference_gateway import ReferencePolicy
+    from secure_rag.cloudru_pii import ScanSummary, ScanUnavailable
     from secure_rag.decision_guardrails import DecisionUnavailable, Observation, digest
     from secure_rag.guardrails import Guardrails, PiiServiceError, RegexPiiRedactor
     from secure_rag.media_guardrails import MediaRejected, MediaResult
@@ -24,7 +25,7 @@ class GatewayPolicyTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         os.environ["REFERENCE_IDENTITY_JWT_SECRET"] = secrets.token_hex(32)
         os.environ["REFERENCE_AUDIT_SALT"] = "synthetic-test-audit-salt"
-        with patch.dict(os.environ, {"REFERENCE_DECISION_MODE": "off"}):
+        with patch.dict(os.environ, {"REFERENCE_DECISION_MODE": "off", "REFERENCE_CLOUDRU_MODE": "off"}):
             self.policy = ReferencePolicy()
         self.policy.pii = RegexPiiRedactor()
         self.policy.guardrails = Guardrails(pii=self.policy.pii)
@@ -145,6 +146,7 @@ class GatewayPolicyTests(unittest.IsolatedAsyncioTestCase):
             decision_context_sha256=digest(state),
             messages_sha256=digest(data["messages"]),
         )
+
         await self.policy.async_pre_call_hook(None, None, data, "completion")
         response = SimpleNamespace(
             choices=[SimpleNamespace(message=SimpleNamespace(content="synthetic@example.test"))]
@@ -152,6 +154,60 @@ class GatewayPolicyTests(unittest.IsolatedAsyncioTestCase):
         await self.policy.async_post_call_success_hook(data, None, response)
         self.assertEqual(len(states), 2)
         self.assertNotIn("@", str(states))
+
+    async def test_cloudru_observes_sanitized_context_and_output_without_mutation(self):
+        scanned = []
+
+        class Scanner:
+            def scan(self, texts):
+                scanned.append(list(texts))
+                return ScanSummary(len(texts), 1, 1, (5,))
+
+        self.policy.cloudru = Scanner()
+        data = self.request()
+        data["messages"][0]["content"] = "Contact synthetic@example.test"
+        data["messages"].append({"role": "system", "content": "API key: SyntheticSecretAbcDef"})
+        data["metadata"] = {"REFERENCE_CLOUDRU_MODE": "off"}
+        result = await self.policy.async_pre_call_hook(None, None, data, "completion")
+        self.assertNotIn("@", scanned[0][0])
+        self.assertEqual(scanned[0][1], "API key: SyntheticSecretAbcDef")
+        self.assertEqual(result["messages"][1]["content"], scanned[0][1])
+        message = SimpleNamespace(content="synthetic@example.test")
+        await self.policy.async_post_call_success_hook(
+            data, None, SimpleNamespace(choices=[SimpleNamespace(message=message)])
+        )
+        self.assertEqual(scanned[1], [message.content])
+        self.assertNotIn("@", message.content)
+        self.assertEqual([e["stage"] for e in self.decision_events], ["input_context", "output"])
+        self.assertTrue(all(e["event"] == "cloudru_pii_shadow" for e in self.decision_events))
+        self.assertNotIn("SyntheticSecretAbcDef", repr(self.decision_events))
+
+    async def test_cloudru_outage_does_not_disable_mandatory_pii_checks(self):
+        class Unavailable:
+            def scan(self, texts):
+                raise ScanUnavailable("service_unavailable")
+
+        self.policy.cloudru = Unavailable()
+        data = self.request()
+        data["messages"][0]["content"] = "Contact synthetic@example.test"
+        result = await self.policy.async_pre_call_hook(None, None, data, "completion")
+        self.assertNotIn("@", result["messages"][0]["content"])
+        self.assertEqual(self.decision_events[0]["status"], "unavailable")
+        self.assertEqual(self.decision_events[0]["reason"], "service_unavailable")
+
+    async def test_cloudru_cannot_scan_unauthorized_requests_or_accept_enforcement_mode(self):
+        class Scanner:
+            def scan(self, texts):
+                raise AssertionError("Unauthorized text reached scanner")
+
+        self.policy.cloudru = Scanner()
+        data = self.request()
+        data["secret_fields"] = {"raw_headers": {}}
+        with self.assertRaises(HTTPException):
+            await self.policy.async_pre_call_hook(None, None, data, "completion")
+        with patch.dict(os.environ, {"REFERENCE_CLOUDRU_MODE": "enforce"}):
+            with self.assertRaises(ValueError):
+                ReferencePolicy()
 
     async def test_later_operator_system_prompt_does_not_break_user_binding(self):
         data = self.request()

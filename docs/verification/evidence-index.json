@@ -519,7 +519,18 @@
       "file": "trials/media-natural-trial3.json",
       "sha256": "151d92266e3dd9885b0f3d0e1a1174239493a1f2e02fd11ca8ff60d51ee70dff",
       "bytes": 34300
+    },
+    {
+      "file": "cloudru-pii-results.md",
+      "sha256": "cc60eb15e16936529d4fba2fc46516008be97b2ae292b02951073576bd2f9983",
+      "bytes": 2420
+    },
+    {
+      "file": "cloudru-pii-results.json",
+      "sha256": "6f15f599b16d5f471ca7bb67fae8c3351269f92eb3296e6374fd2a18de3bfc39",
+      "bytes": 69146
     }
   ],
-  "offline_runtime_commit": "24211939c4b3bf56275629c5d7f5ba51845e66c7"
+  "offline_runtime_commit": "24211939c4b3bf56275629c5d7f5ba51845e66c7",
+  "cloudru_pilot_note": "Local shadow pilot measured on 2026-10-04; its report carries source fingerprints and image IDs independently of historical runtime commits."
 }

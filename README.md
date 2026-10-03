@@ -25,6 +25,8 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 - a [32-case RAG quality benchmark](docs/rag-quality.md) shared by offline retrieval and native Knowledge;
 - optional [semantic guardrail observations](docs/decision-guardrails.md) with Jev via OpenRouter, and a
   text-only evaluation adapter for Cloudflare Clef/Clef-flash;
+- an optional [local Russian PII/secret scan pilot](docs/cloudru-pii-pilot.md) with Cloud.ru
+  guardrails-llm-filter, observing residual detections after mandatory Presidio in shadow mode;
 - [immutable corpus release manifests](docs/corpus-versioning.md), versioned native collections and stale-index checks;
 - least-privilege container defaults and isolated observability volumes.
 

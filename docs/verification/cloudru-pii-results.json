@@ -1,0 +1,2567 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-10-03T22:55:11.207504+00:00",
+  "scope": "64 fixed synthetic cases; full annotated-value coverage, not production recall or F1",
+  "scanner_image": "ghcr.io/cloud-ru-tech/guardrails-llm-filter@sha256:c2365b1c67de00d588192b2bf15b1911f482c13fcff6abcc54aabf14c54e3bf6",
+  "suite_sha256": "2c9f8e6428f44f0c479aa518e409117b09798435b1bb6d39289437119af2a7b8",
+  "source_sha256": {
+    "evals/cloudru_cases.py": "7486275bc50863a1c39663b47c977845ab9fa81c46c10edc99d62ac9b2e38a0a",
+    "evals/cloudru_comparison.py": "531ea98e7e1a3e21a5cee4cd784098877808dc9e9fb30660a4bb6fc3a410ffbb",
+    "gateway/reference_gateway.py": "6b39ce5595f3133e73188a711fb40444f9b80c4700915fb74c795eb375109cc7",
+    "apps/rag-assistant/secure_rag/cloudru_pii.py": "12d782c8a19fab26889c52b41dd15408e92ebb356b023a40f35f7be44e1abfc2",
+    "apps/rag-assistant/secure_rag/presidio_pii.py": "94e666abc19ac5d63f590b5f53119ae8d0ef15974827c007494870642b6fc195",
+    "infra/presidio/recognizers.yaml": "d1463975e7ade2229dcbe31fc32fc6693f01020e9ab680a4796ad1c7807ccf4f",
+    "infra/presidio/nlp.yaml": "33d83ce956ecc0c44a5d98585e525e38ff04ac7e989978a5baf9a80b28d8784b"
+  },
+  "summary": {
+    "cloudru": {
+      "cases": 64,
+      "checked": 64,
+      "unavailable": 0,
+      "protected_values": 35,
+      "sensitive_values": 50,
+      "sensitive_characters": 1169,
+      "covered_sensitive_characters": 842,
+      "extra_masked_characters": 0,
+      "benign_unchanged": 14,
+      "benign_cases": 14,
+      "latency_p50_ms": 2.36,
+      "latency_p95_ms": 6.14,
+      "miss_ids": [
+        "name_lowercase",
+        "name_transliterated",
+        "name_foreign",
+        "name_zero_width",
+        "address_lowercase",
+        "address_ocr",
+        "address_zero_width",
+        "email_cyrillic",
+        "email_spoken",
+        "phone_compact",
+        "phone_spoken",
+        "phone_ocr",
+        "snils_bad_checksum",
+        "passport_ocr",
+        "secret_password_ru"
+      ],
+      "false_positive_ids": []
+    },
+    "presidio": {
+      "cases": 64,
+      "checked": 64,
+      "unavailable": 0,
+      "protected_values": 24,
+      "sensitive_values": 50,
+      "sensitive_characters": 1169,
+      "covered_sensitive_characters": 452,
+      "extra_masked_characters": 42,
+      "benign_unchanged": 12,
+      "benign_cases": 14,
+      "latency_p50_ms": 10.11,
+      "latency_p95_ms": 16.46,
+      "miss_ids": [
+        "name_uppercase",
+        "name_initials_before",
+        "name_lowercase",
+        "name_zero_width",
+        "address_markers",
+        "address_marker_after",
+        "address_apartment",
+        "address_lowercase",
+        "address_ocr",
+        "address_zero_width",
+        "email_spoken",
+        "phone_spoken",
+        "phone_ocr",
+        "passport_ocr",
+        "card_bad_checksum",
+        "kpp",
+        "secret_pem",
+        "secret_github",
+        "secret_stripe",
+        "secret_npm",
+        "secret_bearer",
+        "secret_dsn",
+        "secret_ru_api_key",
+        "secret_password_en",
+        "secret_password_ru",
+        "secret_unlabelled"
+      ],
+      "false_positive_ids": [
+        "date",
+        "uuid"
+      ]
+    }
+  },
+  "groups": {
+    "names": {
+      "cloudru": {
+        "cases": 12,
+        "checked": 12,
+        "unavailable": 0,
+        "protected_values": 8,
+        "sensitive_values": 12,
+        "sensitive_characters": 223,
+        "covered_sensitive_characters": 165,
+        "extra_masked_characters": 0,
+        "benign_unchanged": 0,
+        "benign_cases": 0,
+        "latency_p50_ms": 2.11,
+        "latency_p95_ms": 9.53,
+        "miss_ids": [
+          "name_lowercase",
+          "name_transliterated",
+          "name_foreign",
+          "name_zero_width"
+        ],
+        "false_positive_ids": []
+      },
+      "presidio": {
+        "cases": 12,
+        "checked": 12,
+        "unavailable": 0,
+        "protected_values": 8,
+        "sensitive_values": 12,
+        "sensitive_characters": 223,
+        "covered_sensitive_characters": 181,
+        "extra_masked_characters": 0,
+        "benign_unchanged": 0,
+        "benign_cases": 0,
+        "latency_p50_ms": 10.45,
+        "latency_p95_ms": 31.03,
+        "miss_ids": [
+          "name_uppercase",
+          "name_initials_before",
+          "name_lowercase",
+          "name_zero_width"
+        ],
+        "false_positive_ids": []
+      }
+    },
+    "addresses": {
+      "cloudru": {
+        "cases": 6,
+        "checked": 6,
+        "unavailable": 0,
+        "protected_values": 3,
+        "sensitive_values": 6,
+        "sensitive_characters": 153,
+        "covered_sensitive_characters": 74,
+        "extra_masked_characters": 0,
+        "benign_unchanged": 0,
+        "benign_cases": 0,
+        "latency_p50_ms": 2.57,
+        "latency_p95_ms": 2.94,
+        "miss_ids": [
+          "address_lowercase",
+          "address_ocr",
+          "address_zero_width"
+        ],
+        "false_positive_ids": []
+      },
+      "presidio": {
+        "cases": 6,
+        "checked": 6,
+        "unavailable": 0,
+        "protected_values": 0,
+        "sensitive_values": 6,
+        "sensitive_characters": 153,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": 0,
+        "benign_cases": 0,
+        "latency_p50_ms": 11.71,
+        "latency_p95_ms": 16.08,
+        "miss_ids": [
+          "address_markers",
+          "address_marker_after",
+          "address_apartment",
+          "address_lowercase",
+          "address_ocr",
+          "address_zero_width"
+        ],
+        "false_positive_ids": []
+      }
+    },
+    "contacts": {
+      "cloudru": {
+        "cases": 10,
+        "checked": 10,
+        "unavailable": 0,
+        "protected_values": 5,
+        "sensitive_values": 10,
+        "sensitive_characters": 252,
+        "covered_sensitive_characters": 106,
+        "extra_masked_characters": 0,
+        "benign_unchanged": 0,
+        "benign_cases": 0,
+        "latency_p50_ms": 2.38,
+        "latency_p95_ms": 3.98,
+        "miss_ids": [
+          "email_cyrillic",
+          "email_spoken",
+          "phone_compact",
+          "phone_spoken",
+          "phone_ocr"
+        ],
+        "false_positive_ids": []
+      },
+      "presidio": {
+        "cases": 10,
+        "checked": 10,
+        "unavailable": 0,
+        "protected_values": 7,
+        "sensitive_values": 10,
+        "sensitive_characters": 252,
+        "covered_sensitive_characters": 136,
+        "extra_masked_characters": 10,
+        "benign_unchanged": 0,
+        "benign_cases": 0,
+        "latency_p50_ms": 10.47,
+        "latency_p95_ms": 16.46,
+        "miss_ids": [
+          "email_spoken",
+          "phone_spoken",
+          "phone_ocr"
+        ],
+        "false_positive_ids": []
+      }
+    },
+    "identifiers": {
+      "cloudru": {
+        "cases": 12,
+        "checked": 12,
+        "unavailable": 0,
+        "protected_values": 10,
+        "sensitive_values": 12,
+        "sensitive_characters": 174,
+        "covered_sensitive_characters": 149,
+        "extra_masked_characters": 0,
+        "benign_unchanged": 0,
+        "benign_cases": 0,
+        "latency_p50_ms": 1.68,
+        "latency_p95_ms": 9.72,
+        "miss_ids": [
+          "snils_bad_checksum",
+          "passport_ocr"
+        ],
+        "false_positive_ids": []
+      },
+      "presidio": {
+        "cases": 12,
+        "checked": 12,
+        "unavailable": 0,
+        "protected_values": 9,
+        "sensitive_values": 12,
+        "sensitive_characters": 174,
+        "covered_sensitive_characters": 135,
+        "extra_masked_characters": 0,
+        "benign_unchanged": 0,
+        "benign_cases": 0,
+        "latency_p50_ms": 10.93,
+        "latency_p95_ms": 22.22,
+        "miss_ids": [
+          "passport_ocr",
+          "card_bad_checksum",
+          "kpp"
+        ],
+        "false_positive_ids": []
+      }
+    },
+    "secrets": {
+      "cloudru": {
+        "cases": 10,
+        "checked": 10,
+        "unavailable": 0,
+        "protected_values": 9,
+        "sensitive_values": 10,
+        "sensitive_characters": 367,
+        "covered_sensitive_characters": 348,
+        "extra_masked_characters": 0,
+        "benign_unchanged": 0,
+        "benign_cases": 0,
+        "latency_p50_ms": 4.36,
+        "latency_p95_ms": 6.21,
+        "miss_ids": [
+          "secret_password_ru"
+        ],
+        "false_positive_ids": []
+      },
+      "presidio": {
+        "cases": 10,
+        "checked": 10,
+        "unavailable": 0,
+        "protected_values": 0,
+        "sensitive_values": 10,
+        "sensitive_characters": 367,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 10,
+        "benign_unchanged": 0,
+        "benign_cases": 0,
+        "latency_p50_ms": 4.71,
+        "latency_p95_ms": 8.64,
+        "miss_ids": [
+          "secret_pem",
+          "secret_github",
+          "secret_stripe",
+          "secret_npm",
+          "secret_bearer",
+          "secret_dsn",
+          "secret_ru_api_key",
+          "secret_password_en",
+          "secret_password_ru",
+          "secret_unlabelled"
+        ],
+        "false_positive_ids": []
+      }
+    },
+    "benign": {
+      "cloudru": {
+        "cases": 14,
+        "checked": 14,
+        "unavailable": 0,
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": 14,
+        "benign_cases": 14,
+        "latency_p50_ms": 2.06,
+        "latency_p95_ms": 5.79,
+        "miss_ids": [],
+        "false_positive_ids": []
+      },
+      "presidio": {
+        "cases": 14,
+        "checked": 14,
+        "unavailable": 0,
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 22,
+        "benign_unchanged": 12,
+        "benign_cases": 14,
+        "latency_p50_ms": 9.82,
+        "latency_p95_ms": 15.74,
+        "miss_ids": [],
+        "false_positive_ids": [
+          "date",
+          "uuid"
+        ]
+      }
+    }
+  },
+  "residual": {
+    "checked_cases": 64,
+    "detected_cases": 15,
+    "case_ids": [
+      "name_uppercase",
+      "address_markers",
+      "address_marker_after",
+      "address_apartment",
+      "card_bad_checksum",
+      "kpp",
+      "secret_pem",
+      "secret_github",
+      "secret_stripe",
+      "secret_npm",
+      "secret_bearer",
+      "secret_dsn",
+      "secret_ru_api_key",
+      "secret_password_en",
+      "secret_unlabelled"
+    ],
+    "latency_p50_ms": 2.6,
+    "latency_p95_ms": 6.92,
+    "meaning": "Residual detections are observations, not additional redaction or confirmed PII"
+  },
+  "cases": [
+    {
+      "id": "name_full",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 20,
+        "covered_sensitive_characters": 20,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 9.53
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 20,
+        "covered_sensitive_characters": 20,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 31.03
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.64
+      }
+    },
+    {
+      "id": "name_declined",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 23,
+        "covered_sensitive_characters": 23,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 3.05
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 23,
+        "covered_sensitive_characters": 23,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 15.31
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.91
+      }
+    },
+    {
+      "id": "name_uppercase",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 20,
+        "covered_sensitive_characters": 20,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.92
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 20,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 13.64
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          5
+        ],
+        "latency_ms": 2.52
+      }
+    },
+    {
+      "id": "name_initials_after",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 12,
+        "covered_sensitive_characters": 12,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.41
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 12,
+        "covered_sensitive_characters": 12,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 11.72
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.08
+      }
+    },
+    {
+      "id": "name_initials_before",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 12,
+        "covered_sensitive_characters": 12,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.67
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 12,
+        "covered_sensitive_characters": 5,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 10.06
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.85
+      }
+    },
+    {
+      "id": "name_yo",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 22,
+        "covered_sensitive_characters": 22,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.27
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 22,
+        "covered_sensitive_characters": 22,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 10.33
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.19
+      }
+    },
+    {
+      "id": "name_hyphenated",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 30,
+        "covered_sensitive_characters": 30,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.56
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 30,
+        "covered_sensitive_characters": 30,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 12.58
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.33
+      }
+    },
+    {
+      "id": "name_two_words",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 13,
+        "covered_sensitive_characters": 13,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.88
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 13,
+        "covered_sensitive_characters": 13,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 9.55
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.01
+      }
+    },
+    {
+      "id": "name_lowercase",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 20,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.11
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 20,
+        "covered_sensitive_characters": 13,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 9.41
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.46
+      }
+    },
+    {
+      "id": "name_transliterated",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 21,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.41
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 21,
+        "covered_sensitive_characters": 21,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 9.84
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 1.87
+      }
+    },
+    {
+      "id": "name_foreign",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 9,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.16
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 9,
+        "covered_sensitive_characters": 9,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 10.45
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.12
+      }
+    },
+    {
+      "id": "name_zero_width",
+      "group": "names",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 21,
+        "covered_sensitive_characters": 13,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.39
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 21,
+        "covered_sensitive_characters": 13,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 10.79
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 3.32
+      }
+    },
+    {
+      "id": "address_markers",
+      "group": "addresses",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 37,
+        "covered_sensitive_characters": 37,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.85
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 37,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 13.63
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          5
+        ],
+        "latency_ms": 3.37
+      }
+    },
+    {
+      "id": "address_marker_after",
+      "group": "addresses",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 20,
+        "covered_sensitive_characters": 20,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.57
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 20,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 10.58
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          5
+        ],
+        "latency_ms": 2.6
+      }
+    },
+    {
+      "id": "address_apartment",
+      "group": "addresses",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 17,
+        "covered_sensitive_characters": 17,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.14
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 17,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 11.71
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          5
+        ],
+        "latency_ms": 2.89
+      }
+    },
+    {
+      "id": "address_lowercase",
+      "group": "addresses",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 26,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.82
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 26,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 10.27
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 3.01
+      }
+    },
+    {
+      "id": "address_ocr",
+      "group": "addresses",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 26,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.94
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 26,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 16.08
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 3.34
+      }
+    },
+    {
+      "id": "address_zero_width",
+      "group": "addresses",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 27,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.36
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 27,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 12.01
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.87
+      }
+    },
+    {
+      "id": "email_ascii",
+      "group": "contacts",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 22,
+        "covered_sensitive_characters": 22,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.24
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 22,
+        "covered_sensitive_characters": 22,
+        "extra_masked_characters": 5,
+        "benign_unchanged": null,
+        "latency_ms": 7.63
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.12
+      }
+    },
+    {
+      "id": "email_internal",
+      "group": "contacts",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 24,
+        "covered_sensitive_characters": 24,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.95
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 24,
+        "covered_sensitive_characters": 24,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 9.71
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 1.91
+      }
+    },
+    {
+      "id": "email_plus",
+      "group": "contacts",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 27,
+        "covered_sensitive_characters": 27,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.85
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 27,
+        "covered_sensitive_characters": 27,
+        "extra_masked_characters": 5,
+        "benign_unchanged": null,
+        "latency_ms": 5.73
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.43
+      }
+    },
+    {
+      "id": "email_cyrillic",
+      "group": "contacts",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 19,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.11
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 19,
+        "covered_sensitive_characters": 19,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 10.47
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.11
+      }
+    },
+    {
+      "id": "email_spoken",
+      "group": "contacts",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 35,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 3.24
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 35,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 9.06
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 4.66
+      }
+    },
+    {
+      "id": "phone_plus7",
+      "group": "contacts",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 18,
+        "covered_sensitive_characters": 18,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.4
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 18,
+        "covered_sensitive_characters": 18,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 15.99
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 3.73
+      }
+    },
+    {
+      "id": "phone_eight",
+      "group": "contacts",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 15,
+        "covered_sensitive_characters": 15,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.55
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 15,
+        "covered_sensitive_characters": 15,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 14.63
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.25
+      }
+    },
+    {
+      "id": "phone_compact",
+      "group": "contacts",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 11,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.38
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 11,
+        "covered_sensitive_characters": 11,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 16.46
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.6
+      }
+    },
+    {
+      "id": "phone_spoken",
+      "group": "contacts",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 63,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 3.98
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 63,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 15.78
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 4.02
+      }
+    },
+    {
+      "id": "phone_ocr",
+      "group": "contacts",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 18,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.65
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 18,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 12.24
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.48
+      }
+    },
+    {
+      "id": "snils_valid",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 14,
+        "covered_sensitive_characters": 14,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 5.4
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 14,
+        "covered_sensitive_characters": 14,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 13.36
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.31
+      }
+    },
+    {
+      "id": "snils_bad_checksum",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 14,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.81
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 14,
+        "covered_sensitive_characters": 14,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 12.84
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.23
+      }
+    },
+    {
+      "id": "inn_person",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 12,
+        "covered_sensitive_characters": 12,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.73
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 12,
+        "covered_sensitive_characters": 12,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 12.8
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.84
+      }
+    },
+    {
+      "id": "inn_org",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 10,
+        "covered_sensitive_characters": 10,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.89
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 10,
+        "covered_sensitive_characters": 10,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 19.18
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 6.93
+      }
+    },
+    {
+      "id": "ogrn",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 13,
+        "covered_sensitive_characters": 13,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 9.72
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 13,
+        "covered_sensitive_characters": 13,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 22.22
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.7
+      }
+    },
+    {
+      "id": "ogrnip",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 15,
+        "covered_sensitive_characters": 15,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.4
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 15,
+        "covered_sensitive_characters": 15,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 10.93
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.05
+      }
+    },
+    {
+      "id": "passport",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 11,
+        "covered_sensitive_characters": 11,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.68
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 11,
+        "covered_sensitive_characters": 11,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 9.85
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.1
+      }
+    },
+    {
+      "id": "passport_ocr",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 11,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.37
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 11,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 8.93
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 1.84
+      }
+    },
+    {
+      "id": "card_test",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 19,
+        "covered_sensitive_characters": 19,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.46
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 19,
+        "covered_sensitive_characters": 19,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 13.31
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 1.9
+      }
+    },
+    {
+      "id": "card_bad_checksum",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 19,
+        "covered_sensitive_characters": 19,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.44
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 19,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 9.94
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          5
+        ],
+        "latency_ms": 1.98
+      }
+    },
+    {
+      "id": "iban",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 27,
+        "covered_sensitive_characters": 27,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.65
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 27,
+        "covered_sensitive_characters": 27,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 7.09
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 1.62
+      }
+    },
+    {
+      "id": "kpp",
+      "group": "identifiers",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 9,
+        "covered_sensitive_characters": 9,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.1
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 9,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 9.72
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          5
+        ],
+        "latency_ms": 1.74
+      }
+    },
+    {
+      "id": "secret_pem",
+      "group": "secrets",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 63,
+        "covered_sensitive_characters": 63,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 4.36
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 63,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 5.1
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          3
+        ],
+        "latency_ms": 4.82
+      }
+    },
+    {
+      "id": "secret_github",
+      "group": "secrets",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 40,
+        "covered_sensitive_characters": 40,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 5.25
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 40,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 5,
+        "benign_unchanged": null,
+        "latency_ms": 5.99
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          3
+        ],
+        "latency_ms": 7.37
+      }
+    },
+    {
+      "id": "secret_stripe",
+      "group": "secrets",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 32,
+        "covered_sensitive_characters": 32,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 6.14
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 32,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 4.57
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          3
+        ],
+        "latency_ms": 3.85
+      }
+    },
+    {
+      "id": "secret_npm",
+      "group": "secrets",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 40,
+        "covered_sensitive_characters": 40,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 5.41
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 40,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 5,
+        "benign_unchanged": null,
+        "latency_ms": 5.2
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          3
+        ],
+        "latency_ms": 6.92
+      }
+    },
+    {
+      "id": "secret_bearer",
+      "group": "secrets",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 36,
+        "covered_sensitive_characters": 36,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 6.21
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 36,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 4.71
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          3
+        ],
+        "latency_ms": 6.26
+      }
+    },
+    {
+      "id": "secret_dsn",
+      "group": "secrets",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 58,
+        "covered_sensitive_characters": 58,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 4.81
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 58,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 4.5
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          1
+        ],
+        "latency_ms": 5.06
+      }
+    },
+    {
+      "id": "secret_ru_api_key",
+      "group": "secrets",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 24,
+        "covered_sensitive_characters": 24,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.21
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 24,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 8.14
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          3
+        ],
+        "latency_ms": 2.65
+      }
+    },
+    {
+      "id": "secret_password_en",
+      "group": "secrets",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 19,
+        "covered_sensitive_characters": 19,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.96
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 19,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 4.08
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          1
+        ],
+        "latency_ms": 1.84
+      }
+    },
+    {
+      "id": "secret_password_ru",
+      "group": "secrets",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 19,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 1.61
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 19,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 8.64
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.36
+      }
+    },
+    {
+      "id": "secret_unlabelled",
+      "group": "secrets",
+      "sensitive": true,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 1,
+        "sensitive_values": 1,
+        "sensitive_characters": 36,
+        "covered_sensitive_characters": 36,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 2.29
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 1,
+        "sensitive_characters": 36,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": null,
+        "latency_ms": 3.41
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 1,
+        "match_count": 1,
+        "data_types": [
+          3
+        ],
+        "latency_ms": 2.63
+      }
+    },
+    {
+      "id": "policy_ru",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 1.94
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 9.82
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 3.04
+      }
+    },
+    {
+      "id": "policy_en",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 2.83
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 5.94
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.83
+      }
+    },
+    {
+      "id": "date",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 1.52
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 10,
+        "benign_unchanged": false,
+        "latency_ms": 15.74
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.75
+      }
+    },
+    {
+      "id": "version",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 1.59
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 10.37
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.14
+      }
+    },
+    {
+      "id": "request_number",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 1.53
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 8.95
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.28
+      }
+    },
+    {
+      "id": "budget",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 2.55
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 10.03
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.27
+      }
+    },
+    {
+      "id": "password_policy",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 2.08
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 10.28
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.63
+      }
+    },
+    {
+      "id": "snils_policy",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 2.06
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 10.11
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.96
+      }
+    },
+    {
+      "id": "inn_policy",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 2.5
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 12.16
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.86
+      }
+    },
+    {
+      "id": "address_policy",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 2.42
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 9.48
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.64
+      }
+    },
+    {
+      "id": "generic_title",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 1.57
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 8.55
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.55
+      }
+    },
+    {
+      "id": "uuid",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 5.79
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 12,
+        "benign_unchanged": false,
+        "latency_ms": 9.22
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 7.4
+      }
+    },
+    {
+      "id": "quantity",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 2.9
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 9.79
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.69
+      }
+    },
+    {
+      "id": "math",
+      "group": "benign",
+      "sensitive": false,
+      "cloudru": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 1.8
+      },
+      "presidio": {
+        "status": "checked",
+        "protected_values": 0,
+        "sensitive_values": 0,
+        "sensitive_characters": 0,
+        "covered_sensitive_characters": 0,
+        "extra_masked_characters": 0,
+        "benign_unchanged": true,
+        "latency_ms": 10.42
+      },
+      "after_presidio": {
+        "status": "checked",
+        "text_count": 1,
+        "changed_text_count": 0,
+        "match_count": 0,
+        "data_types": [],
+        "latency_ms": 2.3
+      }
+    }
+  ],
+  "runtime_images": {
+    "cloudru-filter": "sha256:c2365b1c67de00d588192b2bf15b1911f482c13fcff6abcc54aabf14c54e3bf6",
+    "presidio-analyzer": "sha256:015c69036966fe0c9f0e570029f956adc0c9e1b506437db725f9247a590feee4",
+    "presidio-anonymizer": "sha256:e567013893ebc80994e3799f6f55c86aa1f0b0fadb779571ab346f0ec45365c1"
+  },
+  "evaluation_date": "2026-10-04",
+  "callbacks": {
+    "scope": "Live direct gateway callbacks and local services; no model inference",
+    "passed": 7,
+    "total": 7,
+    "checks": [
+      {
+        "id": "input_output_and_private_audit",
+        "passed": true
+      },
+      {
+        "id": "embedding_scan",
+        "passed": true
+      },
+      {
+        "id": "rerank_scan",
+        "passed": true
+      },
+      {
+        "id": "scanner_outage_preserves_presidio",
+        "passed": true
+      },
+      {
+        "id": "capacity_limit",
+        "passed": true
+      },
+      {
+        "id": "text_count_limit",
+        "passed": true
+      },
+      {
+        "id": "unsigned_identity_denied_before_scan",
+        "passed": true
+      }
+    ],
+    "audit_events": 7
+  },
+  "callback_source_sha256": "5147035dfcdba01ae45b0657be7fb544c2089796515a9b70599e8c6cfdad85a1"
+}

@@ -86,6 +86,10 @@ microphone controls and the native media-upload UX remain separate workflows.
 
 ## Controls and compatibility
 
+The optional [Cloud.ru PII/secret pilot](cloudru-pii-pilot.md) adds a private local
+shadow scan of sanitized gateway input/context, embedding/rerank text and final
+answers. Its aggregate observations complement the mandatory Presidio checks.
+
 A mandatory global filter screens user input and native retrieved chunks. It
 fixes the operator's collection scope and pre-injection retrieval mode, rebuilds
 the model prompt from screened sources and publishes screened native citations.

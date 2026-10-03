@@ -1,0 +1,38 @@
+# Optional Cloud.ru PII/secret pilot for the native Open WebUI gateway.
+# Apply AFTER docker-compose.openwebui.yml. No host ports or provider access.
+services:
+  litellm:
+    environment:
+      REFERENCE_CLOUDRU_MODE: shadow
+      REFERENCE_CLOUDRU_SCAN_URL: http://cloudru-filter:9080
+    networks: [platform, gateway, cloudru-scan]
+
+  cloudru-filter:
+    image: ghcr.io/cloud-ru-tech/guardrails-llm-filter@sha256:c2365b1c67de00d588192b2bf15b1911f482c13fcff6abcc54aabf14c54e3bf6
+    # This upstream image currently publishes only linux/amd64.
+    platform: linux/amd64
+    profiles: [openwebui]
+    environment:
+      GUARDRAILS_UPSTREAM_BASE_URL: http://127.0.0.1:1
+      GUARDRAILS_LISTEN_ADDR: 127.0.0.1:8080
+      GUARDRAILS_GRPC_ADDR: 127.0.0.1:9000
+      GUARDRAILS_API_ADDR: :9080
+      GUARDRAILS_METRICS_PORT: "9090"
+      GUARDRAILS_MODE: detect
+      GUARDRAILS_UI_ENABLED: "false"
+      GUARDRAILS_AUDIT_ENABLED: "false"
+      GUARDRAILS_AUDIT_STORE_MASKED_TEXTS: "false"
+      GUARDRAILS_AUDIT_STORE_MASKED_RESPONSE_TEXTS: "false"
+      GUARDRAILS_STORE_BACKEND: in_memory
+      GUARDRAILS_LOG_LEVEL: warn
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: "1"
+    pids_limit: 64
+    networks: [cloudru-scan]
+
+networks:
+  cloudru-scan:
+    internal: true

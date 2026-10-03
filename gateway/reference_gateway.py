@@ -11,6 +11,7 @@ import jwt
 from fastapi import HTTPException
 from litellm.integrations.custom_logger import CustomLogger
 from secure_rag.async_work import run_blocking
+from secure_rag.cloudru_pii import CloudruScanClient, ScanUnavailable
 from secure_rag.decision_guardrails import (
     POLICY_SHA256,
     POLICY_VERSION,
@@ -41,6 +42,14 @@ class ReferencePolicy(CustomLogger):
         self.pii = PresidioHttpRedactor()
         self.guardrails = Guardrails(pii=self.pii)
         self.media = LocalMediaInspector(self.pii)
+        self.cloudru_mode = os.environ.get("REFERENCE_CLOUDRU_MODE", "off")
+        if self.cloudru_mode not in {"off", "shadow"}:
+            raise ValueError("Cloud.ru mode must be off or shadow; enforcement requires separate validation")
+        self.cloudru = (
+            CloudruScanClient(os.environ.get("REFERENCE_CLOUDRU_SCAN_URL", "http://cloudru-filter:9080"))
+            if self.cloudru_mode == "shadow" else None
+        )
+        self._cloudru_slots = asyncio.Semaphore(4)
         self.decision_mode = os.environ.get("REFERENCE_DECISION_MODE", "off")
         if self.decision_mode not in {"off", "shadow"}:
             raise ValueError("Decision mode must be off or shadow; enforcement is not calibrated")
@@ -105,6 +114,26 @@ class ReferencePolicy(CustomLogger):
             time.monotonic() - start
         )
         self.record_decision(data, event)
+
+    async def observe_cloudru(self, data, stage, texts):
+        if self.cloudru is None or not texts or not any(texts):
+            return
+        start = time.monotonic()
+        try:
+            if self._cloudru_slots.locked():
+                raise ScanUnavailable("capacity_limit")
+            async with self._cloudru_slots:
+                event = (await run_blocking(self.cloudru.scan, texts)).event()
+        except ScanUnavailable as error:
+            event = {"status": "unavailable", "reason": str(error)}
+        STAGE_SECONDS.labels(stage="cloudru_pii_shadow", model_alias=MODEL_ALIAS.get(),
+                            verdict=event["status"]).observe(time.monotonic() - start)
+        # Reuse the private observation writer, overriding Jev-specific labels.
+        # Never attach masked_texts, placeholders, originals or request text.
+        self.record_decision(data, {
+            **event, "event": "cloudru_pii_shadow", "mode": "shadow", "stage": stage,
+            "scope": "after_presidio", "policy_version": "cloudru-shadow-v1",
+        })
 
     def record(self, data, verdict, outcome, *, media=None):
         metadata = data.setdefault("metadata", {})
@@ -383,6 +412,23 @@ class ReferencePolicy(CustomLogger):
                 self.deny(data, "pii_check_unavailable_blocked")
         else:
             self.deny(data, "unsupported_model_operation")
+        if self.cloudru is not None:
+            texts = []
+            if call_type in {"completion", "acompletion"}:
+                for message in data.get("messages", []):
+                    content = message.get("content", "")
+                    if isinstance(content, str):
+                        texts.append(content)
+                    elif isinstance(content, list):
+                        texts.extend(part["text"] for part in content if part.get("type") == "text")
+            else:
+                for field in ("input", "query", "documents"):
+                    value = data.get(field)
+                    if isinstance(value, str):
+                        texts.append(value)
+                    elif isinstance(value, list):
+                        texts.extend(value)
+            await self.observe_cloudru(data, "input_context", texts)
         data["metadata"]["reference_upstream_started"] = time.monotonic()
         return data
 
@@ -441,6 +487,7 @@ class ReferencePolicy(CustomLogger):
                     if decision.blocked:
                         self.deny(data, decision.verdicts[0])
                     message.content = decision.text
+                    await self.observe_cloudru(data, "output", [decision.text])
                     await self.observe(
                         data, "output", {**saved[1], "answer": decision.text} if saved else None
                     )
