@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from .guardrails import CONTEXT_ONLY_RULES, EXFILTRATION_RULES, INJECTION_RULES, PiiServiceError, _matches
 
-MEDIA_POLICY_VERSION = "local-media-3"
+MEDIA_POLICY_VERSION = "local-media-4"
 ASR_REVISION = "536b0662742c02347bc0e980a01041f333bce120"
 MAX_MEDIA_BYTES = 4_000_000
 MAX_MEDIA_PARTS = 4
@@ -208,7 +208,15 @@ class LocalMediaInspector:
             text, (*INJECTION_RULES, *EXFILTRATION_RULES, *CONTEXT_ONLY_RULES)
         ) or _MEDIA_EXTERNAL_ACTION.search(text):
             raise MediaRejected("media_injection_blocked")
-        secret = bool(_CREDENTIAL.search(text))
+        credential_matches = list(_CREDENTIAL.finditer(text))
+        if kind == "audio" and any(
+            any(separator in match.group() for separator in (":", "=")) and text[match.end() :].strip()
+            for match in credential_matches
+        ):
+            # A colon-labelled secret may span several words. Removing just
+            # its first token would consume the cue and leave an unchecked tail.
+            raise MediaRejected("audio_sensitive_text_unresolved")
+        secret = bool(credential_matches)
         if secret:
             text = _CREDENTIAL.sub("[REDACTED_CREDENTIAL]", text)
         try:

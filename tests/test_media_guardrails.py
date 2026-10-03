@@ -89,6 +89,17 @@ class MediaGuardrailTests(unittest.TestCase):
         self.assertNotIn("demo-only-value", str(result))
         self.assertIn("[REDACTED_CREDENTIAL]", result.part["text"])
 
+    def test_multiword_labeled_credential_and_literal_mask_tail_are_denied(self):
+        for text in (
+            "Password: demo-recognized frobnicatephrase",
+            "Пароль: demo-recognized frobnicatephrase",
+            "Password: [REDACTED_CREDENTIAL] frobnicatephrase",
+            "API key=demo-recognized and another secret fragment",
+        ):
+            self.reply(text=text, kind="audio")
+            with self.assertRaisesRegex(MediaRejected, "audio_sensitive_text_unresolved"):
+                self.inspector.check(self.audio())
+
     def test_one_redaction_does_not_waive_another_sensitive_value(self):
         for text in (
             "Password: demo-recognized. My password is the word frobnicatephrase.",
