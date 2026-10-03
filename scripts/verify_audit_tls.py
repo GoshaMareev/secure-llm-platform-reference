@@ -42,19 +42,27 @@ def run(report):
         )
         (wrong / "client.key").chmod(0o600)
     event_id = str(uuid.uuid4())
-    code = """import ssl,json,time,urllib.request
-c=ssl.create_default_context(cafile='/certs/ca.crt')
-c.load_cert_chain('/wrong/client.crt','/wrong/client.key')
-wrong=False
-try: urllib.request.urlopen(urllib.request.Request('https://audit-collector:8443/events',data=b'{}'),context=c,timeout=5)
-except (OSError,ssl.SSLError): wrong=True
-c=ssl.create_default_context(cafile='/certs/ca.crt');c.load_cert_chain('/certs/shipper.crt','/certs/shipper.key')
+    code = """import ssl,json,time,urllib.request,urllib.error
 event={'schema_version':2,'component':'gateway','timestamp':time.time(),'event':'delivery_verification','outcome':'allowed','verdict':'synthetic','event_id':EVENT_ID,'request_id':REQUEST_ID}
 request=urllib.request.Request('https://audit-collector:8443/events',data=json.dumps(event).encode(),headers={'Content-Type':'application/json'})
+c=ssl.create_default_context(cafile='/certs/ca.crt')
+c.load_cert_chain('/wrong/client.crt','/wrong/client.key')
+wrong=False;reason='not_rejected'
+try: urllib.request.urlopen(request,context=c,timeout=5)
+except urllib.error.HTTPError: reason='http_error_not_tls_proof'
+except urllib.error.URLError as e:
+    reason=getattr(e.reason,'reason','transport_error_not_tls_proof')
+    wrong=(isinstance(e.reason,ssl.SSLError)
+           and reason in {'TLSV1_ALERT_UNKNOWN_CA','SSLV3_ALERT_BAD_CERTIFICATE','TLSV1_ALERT_BAD_CERTIFICATE'})
+except ssl.SSLError as e:
+    reason=e.reason
+    wrong=reason in {'TLSV1_ALERT_UNKNOWN_CA','SSLV3_ALERT_BAD_CERTIFICATE','TLSV1_ALERT_BAD_CERTIFICATE'}
+except OSError: reason='transport_error_not_tls_proof'
+c=ssl.create_default_context(cafile='/certs/ca.crt');c.load_cert_chain('/certs/shipper.crt','/certs/shipper.key')
 r=urllib.request.urlopen(request,context=c,timeout=5)
 first=r.status;r.close() # deliberately discard acknowledgement body
 with urllib.request.urlopen(request,context=c,timeout=5) as r: ack=json.load(r)
-print(json.dumps({'wrong_certificate_rejected':wrong,'discarded_ack_response':first,'retry_durable':ack=={'event_id':EVENT_ID,'durable':True}}))
+print(json.dumps({'wrong_certificate_rejected':wrong,'wrong_certificate_reason':reason,'discarded_ack_response':first,'retry_durable':ack=={'event_id':EVENT_ID,'durable':True}}))
 """.replace("EVENT_ID", repr(event_id)).replace("REQUEST_ID", repr(str(uuid.uuid4())))
     args = [
         DOCKER,
