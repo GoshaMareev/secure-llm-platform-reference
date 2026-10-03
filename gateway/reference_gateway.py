@@ -76,7 +76,7 @@ class ReferencePolicy(CustomLogger):
                     "message": "Request unavailable",
                 },
             ) from None
-        emit("gateway", "runtime", record)
+        emit("gateway", "runtime", {k: v for k, v in record.items() if k != "actor_hash"})
 
     async def observe(self, data, stage, state):
         if self.decisions is None:
@@ -431,7 +431,13 @@ class ReferencePolicy(CustomLogger):
                     if hasattr(message, field):
                         setattr(message, field, None)
                 if message.content:
+                    output_start = time.monotonic()
                     decision = await run_blocking(output_policy.check_output, message.content)
+                    STAGE_SECONDS.labels(
+                        stage="output_checks",
+                        model_alias=MODEL_ALIAS.get(),
+                        verdict="blocked" if decision.blocked else "checked",
+                    ).observe(time.monotonic() - output_start)
                     if decision.blocked:
                         self.deny(data, decision.verdicts[0])
                     message.content = decision.text

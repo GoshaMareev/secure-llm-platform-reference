@@ -111,10 +111,26 @@ class QualityTests(unittest.TestCase):
                 score(self.case, Observation(answer, ["a", "b"], ["a", "b"], False, True))["passed"]
             )
         self.assertTrue(fact_supported("Shared accounts are prohibited.", ["prohibited"]))
+        self.assertFalse(fact_supported("Shared accounts are not prohibited.", ["prohibited"]))
+        self.assertFalse(
+            fact_supported("Shared accounts are prohibited. They are not prohibited.", ["prohibited"])
+        )
 
     def test_rejecting_a_false_premise_does_not_negate_the_correction(self):
         self.assertTrue(fact_supported("No, access expires after sixty minutes.", ["sixty minutes"]))
         self.assertFalse(fact_supported("No, access never expires after sixty minutes.", ["sixty minutes"]))
+
+    def test_reviewed_russian_measurement_equivalents_keep_polarity(self):
+        self.assertTrue(fact_supported("Доступ истекает через шестьдесят минут.", ["60 минут"]))
+        self.assertFalse(fact_supported("Доступ не истекает через шестьдесят минут.", ["60 минут"]))
+        self.assertTrue(fact_supported("Требуется утвержденная роль для доступа.", ["утверждён"]))
+        self.assertTrue(fact_supported("Сохраняются запросы и решения политики.", ["verdict"]))
+        self.assertTrue(
+            fact_supported(
+                "Идентичности не могут быть повторно использованы между компонентами.", ["may not be reused"]
+            )
+        )
+        self.assertFalse(fact_supported("Решения политики не сохраняются во время инцидента.", ["verdict"]))
 
     def test_raw_diagnostics_cannot_be_written_to_public_report(self):
         with self.assertRaisesRegex(ValueError, "under .local"):

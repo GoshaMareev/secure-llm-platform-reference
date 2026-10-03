@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from .guardrails import CONTEXT_ONLY_RULES, EXFILTRATION_RULES, INJECTION_RULES, PiiServiceError, _matches
 
-MEDIA_POLICY_VERSION = "local-media-2"
+MEDIA_POLICY_VERSION = "local-media-3"
 ASR_REVISION = "536b0662742c02347bc0e980a01041f333bce120"
 MAX_MEDIA_BYTES = 4_000_000
 MAX_MEDIA_PARTS = 4
@@ -35,6 +35,7 @@ _SPOKEN_EMAIL = re.compile(
 # ASR can confidently mishear a spelled address or number. Explicit sensitive
 # labels with no matching redaction are denied, rather than trusting confidence.
 _AUDIO_SENSITIVE_CUES = (
+    (re.compile(r"(?i)\b(?:my\s+name\s+is|меня\s+зовут)\b"), "person"),
     (re.compile(r"(?i)\bbearer\b|\bbare[ ,]+a\b[^.]{0,60}\btoken\b"), "credential"),
     (re.compile(r"(?i)\b(?:e[- ]?mail(?:\s+address)?|электронная\s+почта|почта)\b"), "email"),
     (re.compile(r"(?i)\b(?:phone|telephone|mobile)\s+number|телефон\w*\b"), "phone"),
@@ -43,6 +44,13 @@ _AUDIO_SENSITIVE_CUES = (
         re.compile(r"(?i)\b(?:password|парол\w*|api[ _-]?(?:key|ключ)|secret[ _-]?key|access[ _-]?token)\b"),
         "credential",
     ),
+)
+
+# OCR/STT is data, never authority to transfer material to external recipients.
+# Deliberately independent of a correctly recognized word such as API token.
+_MEDIA_EXTERNAL_ACTION = re.compile(
+    r"(?i)^\s*(?:отправь|перешли|передай|загрузи|send|forward|upload)\b"
+    r"[^\n.!?]{0,300}(?:поставщик|провайдер|внешн|vendor|provider|external|https?://)"
 )
 
 
@@ -193,7 +201,12 @@ class LocalMediaInspector:
         text = result["text"]
         if kind == "audio":
             text = normalize_spoken(text)
-        if _matches(text, (*INJECTION_RULES, *EXFILTRATION_RULES, *CONTEXT_ONLY_RULES)):
+            # A literal mask supplied by OCR/STT is data, not proof that our
+            # redactor removed a value. Only masks created below can resolve cues.
+            text = re.sub(r"\[REDACTED_[A-Z_]+\]", "[UNTRUSTED_MASK_LITERAL]", text, flags=re.I)
+        if _matches(
+            text, (*INJECTION_RULES, *EXFILTRATION_RULES, *CONTEXT_ONLY_RULES)
+        ) or _MEDIA_EXTERNAL_ACTION.search(text):
             raise MediaRejected("media_injection_blocked")
         secret = bool(_CREDENTIAL.search(text))
         if secret:
@@ -203,10 +216,24 @@ class LocalMediaInspector:
         except PiiServiceError:
             raise MediaRejected("pii_check_unavailable_blocked") from None
         kinds = tuple(dict.fromkeys((*kinds, *(("credential",) if secret else ()))))
-        if kind == "audio" and any(
-            cue.search(text) and entity not in kinds for cue, entity in _AUDIO_SENSITIVE_CUES
-        ):
-            raise MediaRejected("audio_sensitive_text_unresolved")
+        if kind == "audio":
+            # Associate every remaining label with its own following mask.
+            # A mask elsewhere cannot waive another unresolved value.
+            for cue, entity in _AUDIO_SENSITIVE_CUES:
+                matches = list(cue.finditer(clean))
+                for i, match in enumerate(matches):
+                    end = matches[i + 1].start() if i + 1 < len(matches) else len(clean)
+                    tail = re.split(r"[.!?\n]", clean[match.end() : min(end, match.end() + 120)])[0]
+                    # Only grammatical separators may occur between the
+                    # label and its mask. An unresolved value followed by a
+                    # different masked value cannot satisfy this cue.
+                    resolved = re.match(
+                        r"(?i)^(?:\s|[:=,\-—\"'«»]|\b(?:is|это|number|номер|address|адрес|равен|равна)\b){0,40}"
+                        + re.escape(f"[REDACTED_{entity.upper()}]"),
+                        tail,
+                    )
+                    if not resolved:
+                        raise MediaRejected("audio_sensitive_text_unresolved")
         if kind == "image":
             if kinds or clean != text:
                 raise MediaRejected("image_sensitive_text_blocked")

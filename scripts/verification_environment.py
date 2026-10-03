@@ -18,8 +18,10 @@ def create():
     }
     (directory / "identities.json").write_text(json.dumps(users) + "\n")
     (directory / "provider-key").write_text("verification-not-secret")
-    (directory / "fault.json").write_text('{"mode":"normal","operation":"all","delay_ms":100}\n')
-    (directory / "fault.json").chmod(0o644)  # private parent directory, read-only container mount
+    controls = directory / "controls"
+    controls.mkdir(exist_ok=True)
+    (controls / "fault.json").write_text('{"mode":"normal","operation":"all","delay_ms":100}\n')
+    (controls / "fault.json").chmod(0o644)  # only controls are mounted into fake upstream
     (directory / "compose.env").write_text(
         f"FULL_STACK_DIR='{directory}'\nFULL_STACK_UID={os.getuid()}\nFULL_STACK_GID={os.getgid()}\n"
         f"OPENROUTER_KEY_FILE='{directory / 'provider-key'}'\nGOOGLE_SSO_DIR='{directory}'\n"

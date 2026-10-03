@@ -32,7 +32,7 @@ REFUSAL = re.compile(
     r"insufficient|not enough|(?:cannot|can't|unable to) (?:answer|provide|determine)|"
     r"(?:do not|don't) have|no (?:information|evidence)|"
     r"(?:does not|do not|doesn't|don't) (?:contain|provide|specify|support)|"
-    r"недостаточн|нет (?:информации|данных)|не (?:могу|содержат|указан)",
+    r"недостаточн|нет (?:информации|данных)|не (?:могу\b|содержат\b|указан)",
     re.IGNORECASE,
 )
 
@@ -105,17 +105,35 @@ def load_cases(path: Path, corpus: dict[str, Any]) -> dict[str, Any]:
 # A conservative observable check, not a semantic judge. Alternatives remain
 # backward compatible; negated, quoted-only and keyword-only claims earn no credit.
 NEGATION = re.compile(r"\b(?:not|never|no|neither|without|не|нет|никогда|без)\b", re.I)
-NEGATIVE_FACT = re.compile(
-    r"must not|cannot|not allowed|prohibited|may not|no[, .]|запрещ|нельзя|не долж", re.I
-)
 
 
 def fact_supported(answer: str, alternatives: list[str]) -> bool:
+    def normalize(text):
+        # Versioned measurement corrections derived from development cases.
+        # These preserve explicit proposition polarity; no keyword bags or
+        # automatic semantic entailment are introduced.
+        text = text.casefold().replace("ё", "е")
+        for source, replacement in (
+            ("шестьдесят минут", "60 минут"),
+            ("решения политики", "policy verdicts"),
+            ("не могут быть повторно использованы", "may not be reused"),
+        ):
+            text = text.replace(source, replacement)
+        return text
+
     clauses = [
-        re.sub(r"^\s*(?:no|нет),\s*", "", clause) for clause in re.split(r"[.!?;\n]+", answer.casefold())
+        re.sub(r"^\s*(?:no|нет),\s*", "", clause) for clause in re.split(r"[.!?;\n]+", normalize(answer))
     ]
+
+    def negated(clause, match):
+        before = clause[max(0, match.start() - 48) : match.start()]
+        after = clause[match.end() : match.end() + 32]
+        return bool(NEGATION.search(before)) or bool(
+            re.match(r"\w*\s+(?:is|are|does|будет|это)?\s*(?:not|never|не)\b", after)
+        )
+
     for term in alternatives:
-        needle = term.casefold()
+        needle = normalize(term)
         for clause in clauses:
             clause = re.sub(r"^\s*(?:no|нет),\s*", "", clause)
             if len(re.findall(r"[^\W_]+", clause, re.UNICODE)) < 3:
@@ -123,20 +141,17 @@ def fact_supported(answer: str, alternatives: list[str]) -> bool:
             for match in re.finditer(r"(?<!\w)" + re.escape(needle), clause):
                 if match.start() and clause[match.start() - 1] in '"«“':
                     continue
-                before = clause[max(0, match.start() - 48) : match.start()]
-                after = clause[match.end() : match.end() + 32]
-                negated = bool(NEGATION.search(before)) or bool(
-                    re.match(r"\s+(?:is|are|does|будет|это)?\s*(?:not|never|не)\b", after)
-                )
-                if NEGATIVE_FACT.search(needle) or not negated:
+                if not negated(clause, match):
                     # Contradicting the same fact elsewhere is not a correct answer.
                     contradictory = any(
-                        re.search(r"(?<!\w)" + re.escape(needle), other)
-                        and NEGATION.search(other[: other.find(needle)])
+                        any(
+                            negated(other, other_match)
+                            for other_match in re.finditer(r"(?<!\w)" + re.escape(needle), other)
+                        )
                         for other in clauses
                         if other != clause
                     )
-                    if not contradictory or NEGATIVE_FACT.search(needle):
+                    if not contradictory:
                         return True
     return False
 

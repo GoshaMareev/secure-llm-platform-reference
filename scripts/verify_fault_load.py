@@ -5,6 +5,7 @@ import base64
 import concurrent.futures
 import hashlib
 import hmac
+import http.client
 import json
 import math
 import shutil
@@ -34,12 +35,21 @@ def token(claims):
 
 
 def call(
-    index=0, *, expired=False, mismatch=False, query="Which approvers are required for emergency access?"
+    index=0,
+    *,
+    expired=False,
+    mismatch=False,
+    query=None,
+    messages=None,
+    model="reference-chat",
 ):
     start = time.monotonic()
+    query = (
+        query or f"Which approvers are required for emergency access? Verification nonce synthetic-{index}."
+    )
     now = int(time.time())
     subject = "verification-user-" + str(index % 8)
-    messages = [{"role": "user", "content": query}]
+    messages = messages or [{"role": "user", "content": query}]
     context = {"query": query, "passages": []}
     identity = token(
         {
@@ -62,7 +72,7 @@ def call(
         }
     )
     body = {
-        "model": "reference-chat",
+        "model": model,
         "messages": messages,
         "reference_context_token": binding,
         "reference_decision_context": context,
@@ -86,7 +96,7 @@ def call(
             data = json.loads(error.read(4096))
         except ValueError:
             data = {}
-    except (URLError, TimeoutError, ValueError):
+    except (URLError, TimeoutError, ValueError, http.client.HTTPException, ConnectionError):
         status, data = 0, {}
     text = " ".join(c.get("message", {}).get("content", "") for c in data.get("choices", []))
     error = data.get("error", {})
@@ -97,14 +107,19 @@ def call(
         "raw_pii": "@northstar.corp" in text or "raw PII: true" in text,
         "has_answer": bool(text),
         "correlated_error": bool(error.get("request_id")) if status != 200 else True,
+        "response_owned": data.get("system_fingerprint")
+        == "verification-"
+        + hashlib.sha256(" ".join(str(m.get("content", "")) for m in messages).encode()).hexdigest()
+        if status == 200
+        else True,
     }
 
 
 def fault(mode="normal", operation="all", delay=100):
-    temporary = STATE / "fault.tmp"
+    temporary = STATE / "controls/fault.tmp"
     temporary.write_text(json.dumps({"mode": mode, "operation": operation, "delay_ms": delay}))
     temporary.chmod(0o644)
-    temporary.replace(STATE / "fault.json")
+    temporary.replace(STATE / "controls/fault.json")
 
 
 def metrics(rows, seconds):
@@ -121,10 +136,12 @@ def metrics(rows, seconds):
         "p95_ms": percentile(ordered, 0.95),
         "accepted_p95_ms": percentile(accepted, 0.95),
         "throughput_rps": round(len(rows) / seconds, 3),
+        "accepted_throughput_rps": round(len(accepted) / seconds, 3),
         "successful": sum(r["status"] == 200 for r in rows),
         "overload_429": sum(r["status"] == 429 for r in rows),
         "error_rate": sum(r["status"] not in {200, 429} for r in rows) / len(rows),
         "privacy_failures": sum(r["raw_pii"] for r in rows),
+        "ownership_failures": sum(not r["response_owned"] for r in rows),
     }
 
 
@@ -144,6 +161,9 @@ def run(report_path, soak_seconds):
         raise ValueError("Isolated gateway preflight failed; no load started")
     result = {
         "schema_version": 1,
+        "source_commit": subprocess.check_output(  # noqa: S603 - local version
+            [shutil.which("git"), "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip(),  # noqa: S603 - local version
         "profile": "isolated verification; synthetic upstream only",
         "deadline_seconds": {"text": 60, "media": 120},
         "capacity": {"chat": 4, "media": 1},
@@ -227,6 +247,7 @@ def run(report_path, soak_seconds):
             all(r["passed"] for r in result["faults"])
             and all(
                 r["privacy_failures"] == 0
+                and r["ownership_failures"] == 0
                 and r["error_rate"] == 0
                 and (
                     r["concurrency"] > 4 or r["accepted_p95_ms"] is not None and r["accepted_p95_ms"] <= 5000
@@ -234,6 +255,7 @@ def run(report_path, soak_seconds):
                 for r in result["load"]
             )
             and result["soak"]["privacy_failures"] == 0
+            and result["soak"]["ownership_failures"] == 0
             and result["soak"]["error_rate"] == 0
         )
     finally:

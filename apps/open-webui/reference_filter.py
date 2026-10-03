@@ -207,6 +207,7 @@ class Filter:
     def deny(self, user, request_id, verdict):
         if REQUEST_CONTEXT.get() is not None:
             REQUEST_CONTEXT.get()["error_code"] = verdict
+            REQUEST_CONTEXT.get()["error_status"] = 400
         self.record(user, request_id, verdict, "blocked")
         raise HTTPException(
             400,
@@ -231,5 +232,7 @@ class Filter:
             emit("webui", "audit", {**common, "event": "rag_access", "actor_hash": actor})
         except OSError:
             AUDIT_ERRORS.labels(component="webui").inc()
+            if REQUEST_CONTEXT.get() is not None:
+                REQUEST_CONTEXT.get().update(error_code="audit_unavailable", error_status=503)
             raise HTTPException(503, detail="Request unavailable") from None
         emit("webui", "runtime", {**common, "event": "rag_policy"})

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
@@ -99,6 +100,7 @@ class Handler(BaseHTTPRequestHandler):
             "object": "chat.completion",
             "created": 0,
             "model": "synthetic-reference-model",
+            "system_fingerprint": "verification-" + hashlib.sha256(incoming.encode()).hexdigest(),
             "choices": [
                 {"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": text}}
             ],

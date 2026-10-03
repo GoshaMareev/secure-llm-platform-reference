@@ -113,6 +113,75 @@ class CapacityTests(unittest.IsolatedAsyncioTestCase):
         await worker
         self.assertEqual(middleware.active, 0)
 
+    async def test_native_background_task_keeps_slot_and_response_buffer(self):
+        from secure_rag.telemetry import REQUEST_CONTEXT
+
+        gate = asyncio.Event()
+
+        async def background():
+            await gate.wait()
+            return {"completed": True}
+
+        async def app(scope, receive, send):
+            REQUEST_CONTEXT.get()["native_tasks"].append(asyncio.create_task(background()))
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b'{"task_ids":["synthetic"]}'})
+
+        middleware = CapacityMiddleware(app, join_native_tasks=True)
+        call, sent = self.request(middleware)
+        task = asyncio.create_task(call)
+        await asyncio.sleep(0.03)
+        self.assertEqual(middleware.active, 1)
+        self.assertEqual(sent, [])
+        gate.set()
+        await task
+        self.assertEqual(sent[0]["status"], 200)
+        self.assertEqual(middleware.active, 0)
+
+    async def test_repeated_cancellation_cannot_detach_blocking_worker(self):
+        from secure_rag.async_work import run_blocking
+
+        gate = threading.Event()
+        entered = threading.Event()
+
+        def blocking():
+            entered.set()
+            gate.wait(2)
+
+        task = asyncio.create_task(run_blocking(blocking))
+        await asyncio.sleep(0.02)
+        self.assertTrue(entered.is_set())
+        task.cancel()
+        await asyncio.sleep(0.02)
+        task.cancel()
+        await asyncio.sleep(0.02)
+        self.assertFalse(task.done())
+        gate.set()
+        await asyncio.gather(task, return_exceptions=True)
+
+    async def test_native_background_deadline_joins_child(self):
+        from secure_rag.telemetry import REQUEST_CONTEXT
+
+        ended = asyncio.Event()
+
+        async def background():
+            try:
+                await asyncio.sleep(100)
+            finally:
+                ended.set()
+
+        async def app(scope, receive, send):
+            REQUEST_CONTEXT.get()["native_tasks"].append(asyncio.create_task(background()))
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"{}"})
+
+        middleware = CapacityMiddleware(app, join_native_tasks=True, text_deadline=0.02)
+        call, sent = self.request(middleware)
+        await call
+        self.assertEqual(sent[0]["status"], 504)
+        self.assertTrue(ended.is_set())
+        self.assertEqual(middleware.active, 0)
+
 
 def lambda_message(sent):
     async def send(message):

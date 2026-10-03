@@ -14,7 +14,16 @@ MAX_RESPONSE_BYTES = 1_000_000
 
 
 class CapacityMiddleware:
-    def __init__(self, app, *, capacity=4, text_deadline=60, media_deadline=120, chat_paths=CHAT_PATHS):
+    def __init__(
+        self,
+        app,
+        *,
+        capacity=4,
+        text_deadline=60,
+        media_deadline=120,
+        chat_paths=CHAT_PATHS,
+        join_native_tasks=False,
+    ):
         self.app = app
         self.chat_paths = chat_paths
         self.capacity = capacity
@@ -23,6 +32,7 @@ class CapacityMiddleware:
         self.active = 0
         self.counts = Counter()
         self.latencies = []
+        self.join_native_tasks = join_native_tasks
 
     async def error(self, send, status, code, request_id):
         self.counts[code] += 1
@@ -84,6 +94,8 @@ class CapacityMiddleware:
         from secure_rag.telemetry import REQUEST_CONTEXT
 
         context = {"request_id": request_id}
+        if self.join_native_tasks:
+            context["native_tasks"] = []
         REQUEST_CONTEXT.set(context)
         scope.setdefault("state", {})["reference_request_id"] = request_id
         # No await between checking and reservation: atomic on one event loop.
@@ -115,6 +127,12 @@ class CapacityMiddleware:
             except (ValueError, TypeError, AttributeError):
                 return await self.error(send, 400, "invalid_request", request_id)
             deadline = self.media_deadline if media else self.text_deadline
+            if (
+                self.join_native_tasks
+                and isinstance(data.get("message_ids"), (list, dict))
+                and len(data["message_ids"]) > 1
+            ):
+                return await self.error(send, 400, "native_multi_model_not_supported", request_id)
             remaining = deadline - (time.monotonic() - start)
             queued, total = [], 0
             consumed = False
@@ -141,7 +159,20 @@ class CapacityMiddleware:
                         disconnected.set()
                         return
 
-            worker = asyncio.create_task(self.app(scope, replay, capture))
+            async def lifecycle():
+                await self.app(scope, replay, capture)
+                # Pinned native UI normally returns task IDs while processing
+                # continues. Its task adapter registers those tasks in this
+                # server-owned context, so admission/deadline own their lifetime.
+                if self.join_native_tasks:
+                    tasks = context["native_tasks"]
+                    if tasks:
+                        results = await asyncio.gather(*tasks)
+                        if any(result is None for result in results):
+                            context.setdefault("error_code", "model_request_failed")
+                            context.setdefault("error_status", 502)
+
+            worker = asyncio.create_task(lifecycle())
             monitor = asyncio.create_task(watch_disconnect())
             done, _ = await asyncio.wait(
                 {worker, monitor}, timeout=max(0, remaining), return_when=asyncio.FIRST_COMPLETED
@@ -150,6 +181,8 @@ class CapacityMiddleware:
                 await worker
                 response_start = next((m for m in queued if m["type"] == "http.response.start"), None)
                 status = response_start["status"] if response_start else 502
+                if status < 400 and context.get("error_code"):
+                    status = context.get("error_status", 502)
                 if status >= 400:
                     # Trust only policy state set in this request's server context.
                     # Provider/client error strings cannot manufacture an abstention.
@@ -206,6 +239,11 @@ class CapacityMiddleware:
                 if task is not None and not task.done():
                     task.cancel()
             await asyncio.gather(*(t for t in (worker, monitor) if t), return_exceptions=True)
+            native_tasks = context.get("native_tasks", [])
+            for task in native_tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*native_tasks, return_exceptions=True)
             self.active -= 1
             self.latencies.append(time.monotonic() - start)
             self.latencies = self.latencies[-1000:]

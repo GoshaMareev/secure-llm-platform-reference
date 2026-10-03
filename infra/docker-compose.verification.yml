@@ -22,7 +22,7 @@ services:
     profiles: !override [openwebui]
     environment: {VERIFICATION_FAULT_FILE: /operator/fault.json, PYTHONPATH: '/reference'}
     volumes:
-      - ../.local/verification:/operator:ro
+      - ../.local/verification/controls:/operator:ro
       - ../ingestion:/reference/ingestion:ro
       - ../sample-data:/reference/sample-data:ro
     networks: !override [platform]
