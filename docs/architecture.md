@@ -95,3 +95,25 @@ This protects against accidental prompt leakage into general observability. It d
 | demo gateway | LiteLLM backed by approved local or compatible inference |
 | JSONL audit spool | authenticated, encrypted SIEM transport |
 | synthetic catalog | versioned enterprise content connector |
+
+## Native durable delivery and stage timing
+
+```mermaid
+flowchart LR
+  UI[Native WebUI] --> GW[Gateway output policy]
+  UI --> UA[(WebUI audit segments)]
+  GW --> GA[(Gateway audit segments)]
+  UA --> S[Read-only spool shipper]
+  GA --> S
+  S -->|private mTLS| C[Durable HTTPS collector]
+  C --> D[(Deduplicated SQLite events)]
+  C -->|durable ACK| K[(Separate checkpoint volume)]
+  UI --> P[Prometheus bounded labels]
+  GW --> P
+```
+
+This native v2 path exports metadata only and never prompts, responses or OCR/STT text.
+The independent legacy API diagram above retains its separate unimplemented SIEM adapter.
+Native audit durability gates successful answers; operational write errors degrade health.
+Retrieval stage time includes embedding/reranking/PII subwork, so stage timers overlap.
+[Measured limits](verification/README.md) distinguish this local collector from enterprise SIEM.

@@ -22,7 +22,7 @@ Operational and audit events in this profile contain verdicts and request IDs,
 with salted actor hashes only in audit. Neither stream stores prompts, answers,
 emails or tokens. Both services can write both volumes: this prevents ordinary
 observability leakage, not a compromised application or host administrator.
-The current profile does not ship those new streams to Loki or SIEM.
+Native audit v2 is delivered to a private local HTTPS collector with mTLS, durable acknowledgement and event-ID deduplication. This demonstrates a future SIEM contract, not an enterprise SIEM integration. Operational records remain separate; Loki cannot mount audit storage.
 Ingress header trust also assumes the internal application network is trusted:
 a compromised peer container could impersonate a user at Open WebUI's trusted
 header endpoint. A hosted production design must enforce proxy provenance,
@@ -36,10 +36,10 @@ access. Sensitive OCR text blocks the image; metadata is stripped from allowed
 pixels. Audio is replaced by a locally transcribed, PII-redacted text part.
 Recognition/PII failures deny the request. Remote URLs and video are rejected.
 See [media policy, evaluation and limits](media-guardrails.md): this covers
-recognized English text/speech, not faces, biometrics or all hidden visual text.
+recognized EN/RU text/speech under the operator-gated media policy, not faces, biometrics or all hidden visual text.
 Native document or chat state can retain original
 synthetic source text; model/citation redaction does not mean deletion from the
-authorized document store. Remote-model quality and English-rule bypasses remain
+authorized document store. Remote-model quality and pattern-rule bypasses remain
 limitations. See [ADR 0005](decisions/0005-native-openwebui-rag.md) and
 [native checks](full-stack-validation.md).
 
@@ -115,12 +115,18 @@ A question has weak retrieval support. The confidence gate returns a refusal bef
 - direct local mode has no authentication; Compose includes the OAuth2 Proxy/Entra ID boundary;
 - filters are caller-provided narrowing constraints; document audiences are granted only by server-owned identity policy;
 - the deterministic vectorizer is for offline verification, not semantic quality;
-- audit transport to SIEM is documented but intentionally not implemented;
+- enterprise SIEM integration is not implemented; the native profile includes local mTLS audit delivery;
 - local JSONL files are not a tamper-evident audit store;
-- injection guardrails are English-only pattern rules (ADR 0004): they cover common phrasings and obfuscations and are bypassable by paraphrase or other languages; no trained prompt-injection classifier or malware scanner is bundled;
-- PII redaction is English-only; its recall depends on the configured spaCy model, and the regex fallback misses names entirely;
+- deterministic EN/RU injection patterns cover fixed tests and can miss paraphrases; Jev is a supplemental shadow classifier, not an authorization boundary or malware scanner;
+- Presidio requires EN/RU span union for Cyrillic input; recall and false positives depend on the pinned small NLP pipelines. The offline regex fallback misses names. Unknown multiword secret forms and ASR substitutions remain limitations;
 - Docker Compose demonstrates boundaries but is not a production orchestrator.
 
 ## Secure production requirements
 
 Before production use, validate real identity claims and proxy provenance, add encrypted audit transport, credential management, retention controls, rate limits, integrity-protected audit storage, dependency scanning, signed images, and deployment-specific threat modeling.
+
+## Native request lifecycle
+
+Both native chat aliases enforce capacity. A single model is accepted per request. Registered native background children are joined before response flushing or capacity release; disconnect and deadline cleanup joins them. Gateway chat capacity is four, with immediate 429 and no unbounded waiting queue. Text/media deadlines are 60/120 seconds. Blocking workers retain their slot until their bounded socket timeout completes. The adapter targets the pinned deployment without Redis. Native task IDs now reach the caller after processing: asynchronous cancellation UX must be assessed before adopting this adapter in other deployments.
+
+Audit writes are acknowledged on local disk before success. Full/failed spool denies new successes; operational logging failures degrade health and metrics without replacing the original answer. Audit history can be changed by a privileged host administrator. See [security review](verification/security-review.md), [audit evidence](verification/audit-results.md), and [fault/load evidence](verification/load-results.md).

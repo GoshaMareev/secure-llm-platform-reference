@@ -1,14 +1,14 @@
 # Local media privacy checks
 
 Inline attachments in the native Open WebUI profile now pass a mandatory gateway
-check before hosted inference. `local-media-1` uses private Tesseract OCR and
+check before hosted inference. `local-media-4` uses private Tesseract OCR and
 faster-whisper-small speech recognition, followed by the same Presidio services
-and English injection rules used for text. The caller cannot disable this layer.
+and EN/RU instruction rules used for text. The caller cannot disable this layer.
 
 | Input | Result before provider routing |
 |---|---|
 | Inline PNG/JPEG/WebP | Decode, single-frame/dimension checks, local OCR, injection and PII/credential checks. Detected sensitive text blocks the whole image. Allowed pixels are re-encoded as PNG without metadata. |
-| Inline WAV/MP3 speech | Decode/resample locally, detect English speech, transcribe, screen instructions, normalize common spoken-email forms and redact PII/credentials. Replace the audio part with text; no raw recording reaches the provider. |
+| Inline WAV/MP3 speech | Decode/resample locally, detect approved EN/RU speech, transcribe, screen instructions, normalize common spoken-email forms and redact PII/credentials. Replace the audio part with text; no raw recording reaches the provider. |
 | Ambiguous sensitive speech | A sensitive label such as “email address”, “phone number” or “password” without a corresponding successful redaction blocks the request. |
 | Remote URL, video, unknown part/file type | Reject before fetching or provider routing. |
 | Inspector/PII unavailable, malformed result, unreviewed ASR revision, low confidence or unsupported speech language | Deny with a stable reason code; never return the raw transcript or decoder error. |
@@ -26,7 +26,7 @@ by this change.
 The inspector has no provider credentials, host port or outbound network route.
 It runs as an unprivileged user on the internal platform network with a read-only
 filesystem, temporary-memory OCR files, a 1.5 GiB memory limit, two CPU cores,
-64-process limit and one active inspection. Capacity exhaustion denies a request.
+64-process limit and one active inspection. Capacity exhaustion denies with gateway HTTP429 and `media_capacity_exhausted`.
 The gateway waits at most 45 seconds per media part; there is no retry or provider
 fallback. Up to four parts are allowed per completion, each at most 4 MB decoded.
 Images are limited to 4 million pixels. Audio is limited to 30 seconds, one audio
@@ -34,13 +34,14 @@ stream, at most stereo and 48 kHz input; recognition uses 16 kHz mono samples.
 Extracted text is capped at 12,000 characters.
 
 Tesseract's minimum recognized-word confidence must be at least 0.65. Speech must
-have English language probability at least 0.70, per-segment `exp(avg_logprob)`
+have approved-language probability at least 0.70, per-segment `exp(avg_logprob)`
 at least 0.45 and no-speech probability at most 0.60. These thresholds are policy
 limits, not measured privacy guarantees. Empty OCR results can permit text-free
 images; empty/unreliable speech does not permit audio.
 
-The shared Presidio NER model is English. Cyrillic OCR text and non-English
-detected speech are denied. Other image languages, handwriting, tiny/faint text,
+The shared Presidio analyzer always checks English and also requires pinned Russian NER
+for Cyrillic text, merging spans before masking. Russian OCR/STT is operator-gated, default off.
+Unapproved detected speech is denied. Other image languages, handwriting, tiny/faint text,
 rotations, mixed speech and unlabeled spoken secrets are not reliably covered.
 The sensitive-label fallback can also reject benign discussions of email or
 credentials; this conservative false-positive tradeoff has not been calibrated.
@@ -88,7 +89,7 @@ media stays under `.local/media-evaluation/fixtures`; the report contains case
 IDs, verdicts, booleans, latency and source hashes. CI runs the isolated version
 and publishes only that JSON report.
 
-## Observed evaluation
+## Historical observed evaluation
 
 On 2026-10-03, the actual OCR/STT + Presidio + gateway callback checks passed
 **18/18** on synthetic fixtures. See [machine-readable evidence](media-evaluation.json).
@@ -125,3 +126,11 @@ docker exec secure-llm-platform-reference-open-webui-1 rm -r /tmp/media-fixtures
 Native WebUI deliberately presents a generic policy-denial message. The verifier
 checks HTTP status and the corresponding media verdict in the private audit
 stream; its public report contains only verdicts, request IDs and booleans.
+
+## Current versioned evaluation
+
+The [final media report](verification/media-results.md) separates the accepted64-case
+natural-voice candidate, rejected portable RU stress set, native8-case API smoke and
+recognition limits. Policy4 requires an immediate separate mask for each sensitive cue,
+neutralizes caller-provided mask literals and blocks colon/equal-labelled credential tails.
+Historical18/18 and6/6 reports below remain unchanged evidence for their original versions.

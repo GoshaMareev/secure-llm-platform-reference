@@ -100,3 +100,23 @@ The application inventory explicitly supplements `.lock` packages that Syft's
 directory cataloger did not recognize. Unknown license evidence is marked
 `UNCONFIRMED`; an SBOM is not a vulnerability scan or a redistribution approval.
 Model/language-pack artifact notices accompany the final evidence index.
+
+## Additional operator probes
+
+```sh
+python3 scripts/verify_service_faults.py --storage-only --report .local/storage-new.json
+python3 scripts/verify_audit_tls.py --report .local/audit-tls-new.json
+python3 scripts/verify_capacity_runtime.py --audio .local/media-evaluation/fixtures/benign.wav \
+  --report .local/capacity-new.json
+# Copy scripts/verify_native_lifecycle.py into isolated WebUI data; execute with
+# PYTHONPATH=/reference/bootstrap:/reference/secure-rag:/reference.
+# Copy scripts/verify_bilingual.py into native WebUI data; execute with
+# PYTHONPATH=/reference:/reference/secure-rag.
+```
+
+Each host report path must be fresh and private. Native lifecycle imports the pinned bootstrap
+operator helpers and uses disposable chats. Restore fake provider controls to normal after delay
+probes. RU media must be enabled by the operator only after accepted candidate checks; set
+`REFERENCE_RU_MEDIA_ENABLED=true` in private Compose env and recreate the inspector. Its default
+remains false. Portable eSpeak RU currently fails the benign acceptance threshold: see
+[recognition evidence](media-results.md). No broad Russian speech guarantee is implied.

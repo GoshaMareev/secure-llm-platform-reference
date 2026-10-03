@@ -194,6 +194,14 @@ make walkthrough
 
 Five real HTTP scenarios demonstrate answers, refusal, identity-derived denial, injection blocking and correlated operational/audit events. [Run and compare the reference](docs/walkthrough.md).
 
+## Versioned portfolio release
+
+The [evidence index](docs/verification/README.md) links measured native/offline quality,
+corpus rollback, isolated faults/load, EN/RU media, Jev shadow, durable mTLS audit delivery
+and Syft inventories. Native core passes32/32 three times; expanded125/128 and holdout30/32;
+offline core32/32. All measurements use synthetic data and preserve historical/rejected results.
+The [local guide](docs/verification/local-verification.md) runs without paid keys.
+
 ## Verification
 
 ```bash
@@ -229,9 +237,9 @@ tests/                    offline unit tests
 
 - verify the full protected Compose flow against a disposable Microsoft Entra ID app registration;
 - replace the synthetic server-owned subject policy with deployment-specific Entra claim mapping;
-- validate ingress provenance against the real proxy; extend audit rotation/durability and gateway outage tests;
-- generate an SBOM and dependency-license report, then repeat the security review against the hardened revision;
-- extend the versioned RAG quality benchmark to a larger domain dataset and additional corpus releases;
+- validate ingress provenance and sizing against the real enterprise proxy and workload;
+- resolve unconfirmed dependency licenses and repeat security review for deployment-specific changes;
+- obtain independent human holdout review and extend the benchmark to representative domain data;
 - calibrate the semantic shadow layer on representative/adversarial data and compare Clef before enabling blocking;
 - validate production inference quality separately from synthetic gateway/control checks.
 

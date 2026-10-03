@@ -1,0 +1,47 @@
+{
+  "profile": "isolated synthetic upstream; native background storage, no hosted credentials",
+  "checks": [
+    {
+      "route": "/api/chat/completions",
+      "status": 200,
+      "background_task_returned": true,
+      "stored_answer_done": true,
+      "active_on_return": 0,
+      "elapsed_ms": 11138.62,
+      "passed": true
+    },
+    {
+      "route": "/api/v1/chat/completions",
+      "status": 200,
+      "background_task_returned": true,
+      "stored_answer_done": true,
+      "active_on_return": 0,
+      "elapsed_ms": 10530.14,
+      "passed": true
+    },
+    {
+      "check": "multi-model fanout denied",
+      "status": 400,
+      "passed": true
+    },
+    {
+      "check": "nine native requests cannot exceed eight admissions across both aliases",
+      "native_capacity_rejections": 1,
+      "statuses": [
+        200,
+        400,
+        200,
+        400,
+        200,
+        200,
+        400,
+        400,
+        429
+      ],
+      "passed": true
+    }
+  ],
+  "accepted": true,
+  "runtime_commit": "4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e",
+  "upstream_stage_delay_ms": 2000
+}

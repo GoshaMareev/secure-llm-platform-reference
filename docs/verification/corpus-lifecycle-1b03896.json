@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "profile": "isolated native pgvector + synthetic embedding/rerank/chat",
+  "releases": {
+    "1.0.0": "ab9a6d03e213acebddd373a247fc664cf13708b4a9ee3bf8da909b6be9ecfd44",
+    "1.1.0": "3db86a97a0d539ac8d71457debe5ab0d463d29fcf36ee1e9261f53acd41a1873"
+  },
+  "checks": [
+    {
+      "check": "interrupted upload does not activate a release",
+      "passed": true
+    },
+    {
+      "check": "retry and repeated bootstrap retain stable file/collection IDs",
+      "passed": true
+    },
+    {
+      "check": "stale native model fails closed before inference",
+      "passed": true
+    },
+    {
+      "check": "changed bytes cannot reuse frozen manifest",
+      "passed": true
+    },
+    {
+      "check": "1.0.0 -> 1.1.0 -> 1.0.0 restores original IDs and bytes",
+      "passed": true
+    },
+    {
+      "check": "retired collections remain available to operator for rollback",
+      "passed": true
+    }
+  ],
+  "accepted": true
+}

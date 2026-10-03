@@ -1,0 +1,138 @@
+{
+  "live": true,
+  "source_commit": "63f1b267fdd8ee61b0e7c3618e48016ba5997051",
+  "runner_sha256": "9897a4e1268dd1444adf727817180377e073069644a7a8ad9887ca93e19deb25",
+  "correlated_native_events": 2577,
+  "checks": [
+    {
+      "check": "engineer is a regular user",
+      "passed": true
+    },
+    {
+      "check": "engineer Knowledge scope",
+      "passed": true
+    },
+    {
+      "check": "engineer engineering model scope",
+      "passed": true
+    },
+    {
+      "check": "engineer hides embedding and rerank models",
+      "passed": true
+    },
+    {
+      "check": "reader is a regular user",
+      "passed": true
+    },
+    {
+      "check": "reader Knowledge scope",
+      "passed": true
+    },
+    {
+      "check": "reader engineering model scope",
+      "passed": true
+    },
+    {
+      "check": "reader hides embedding and rerank models",
+      "passed": true
+    },
+    {
+      "check": "reader cannot read Engineering Knowledge by ID",
+      "passed": true
+    },
+    {
+      "check": "reader cannot read Engineering file content by ID",
+      "passed": true
+    },
+    {
+      "check": "reader cannot query restricted collection",
+      "passed": true
+    },
+    {
+      "check": "reader cannot query restricted collection",
+      "passed": true
+    },
+    {
+      "check": "reader cannot query unknown collection",
+      "passed": true
+    },
+    {
+      "check": "reader cannot select engineering model",
+      "passed": true
+    },
+    {
+      "check": "reader cannot disable mandatory filter",
+      "passed": true
+    },
+    {
+      "check": "client flags cannot bypass injection check",
+      "passed": true
+    },
+    {
+      "check": "direct proxy route cannot bypass policy context",
+      "passed": true
+    },
+    {
+      "check": "body cannot forge transport identity",
+      "passed": true
+    },
+    {
+      "check": "caller cannot override provider URL",
+      "passed": true
+    },
+    {
+      "check": "reader receives a cited public-policy answer",
+      "passed": true
+    },
+    {
+      "check": "poisoned context removed from returned citations",
+      "passed": true
+    },
+    {
+      "check": "buffered response even when caller requests streaming",
+      "passed": true
+    },
+    {
+      "check": "engineer receives a cited production-access answer",
+      "passed": true
+    },
+    {
+      "check": "spoofed collection and mode cannot expand reader scope",
+      "passed": true
+    },
+    {
+      "check": "unsupported question produces a grounded refusal",
+      "passed": true
+    },
+    {
+      "check": "contact answer and citations redact synthetic PII",
+      "passed": true
+    },
+    {
+      "check": "separate operational and audit records correlate",
+      "passed": true
+    },
+    {
+      "check": "event streams omit prompts, answers and emails",
+      "passed": true
+    }
+  ],
+  "passed": 28,
+  "total": 28,
+  "audit_example": [
+    {
+      "component": "webui",
+      "event": "rag_access",
+      "outcome": "allowed",
+      "verdict": "context_injection_quarantined"
+    }
+  ],
+  "budget": {
+    "task": "acl",
+    "cost_usd": 0.00086587,
+    "total_used_usd": 0.207317572,
+    "run_limit_usd": 1,
+    "stopped_by_budget": false,
+    "exit_code": 0
+  }
+}

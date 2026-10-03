@@ -1,7 +1,7 @@
 # Versioned synthetic text corpus
 
-The active corpus is `northstar-reference@1.0.0`. Its release manifest is
-[`sample-data/releases/1.0.0.json`](../sample-data/releases/1.0.0.json).
+The active corpus is `northstar-reference@1.1.0`. Its release manifest is
+[`sample-data/releases/1.1.0.json`](../sample-data/releases/1.1.0.json).
 
 A release records document IDs, titles, paths, metadata (including audience), raw-byte SHA-256 values,
 and hashes of the catalog, glossary and identity policy. A canonical manifest digest identifies the complete
@@ -28,9 +28,7 @@ answers and audit records identify the release that supplied their evidence.
 5. Review its complete case outcomes, then create a new baseline with `--record-baseline NEW_PATH`.
 6. Commit source files, manifest, suite and reports together so Git preserves the exact input bytes.
 
-Publishing uses exclusive file creation and cannot overwrite an existing version. Restoring the recorded Git
-revision restores historical document bytes; a manifest alone cannot reconstruct them. To roll back, check
-out that release's source revision, rebuild the index, and provision it again. Do not edit an old manifest to
+Publishing uses exclusive file creation and cannot overwrite an existing version. Immutable source snapshots live in `sample-data/snapshots/1.0.0`; 1.1.0 changes only the bilingual glossary, not document facts. A manifest alone cannot reconstruct bytes. Bootstrap supports `--release 1.0.0` for the retained snapshot and `--release 1.1.0` for the current source. The installed manifest selects the verified active release; models must match it. Do not edit an old manifest to
 make drift checks pass.
 
 ## Native Knowledge activation
@@ -44,7 +42,7 @@ Only after both collections pass validation does bootstrap point the two RAG mod
 write the operator manifest with native file/collection IDs. It clears read grants on the previously managed
 collections and preserves their contents for rollback. Activation uses several upstream API calls and is
 not transactional: a failed activation requires a bootstrap retry. The global filter blocks a model whose
-version/digest disagrees with the current frozen source release. Live evaluation checks native inventory and
+version/digest disagrees with the verified installed release. Live evaluation checks native inventory and
 stored bytes before and after running, as well as the models' assigned collection scopes.
 
-The release contains synthetic **text**. Sensitive content inside images/audio remains a separate task.
+The release contains synthetic **text**. Media has a separate fixed-suite verification path and does not become an authorized corpus source. See [lifecycle evidence](verification/corpus-lifecycle-1b03896.json) and [media results](verification/media-results.md).
