@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "synthetic": true,
+  "corpus_id": "northstar-reference",
+  "corpus_version": "1.0.0",
+  "catalog_sha256": "7841740311015358a730cb80d60f0798f37a568cf06a36d9030406315b607eb1",
+  "documents": [
+    {
+      "id": "access-control",
+      "path": "documents/access-control.md",
+      "title": "Production access policy",
+      "metadata": {
+        "doc_category": "policy",
+        "system": "platform",
+        "audience": "engineers",
+        "topic": "access"
+      },
+      "sha256": "73401b66f2ed76161b6a6096e3e7d3e407b7f606f85537dc0e6696ca8ca6f1cc"
+    },
+    {
+      "id": "incident-response",
+      "path": "documents/incident-response.md",
+      "title": "AI service incident response",
+      "metadata": {
+        "doc_category": "runbook",
+        "system": "platform",
+        "audience": "engineers",
+        "topic": "incidents"
+      },
+      "sha256": "9375d4c0fa08e70c5be8f32226a8fce9402f682ee338b535018cd0757eeb9df7"
+    },
+    {
+      "id": "model-usage",
+      "path": "documents/model-usage.md",
+      "title": "Approved model usage",
+      "metadata": {
+        "doc_category": "policy",
+        "system": "ai",
+        "audience": "all",
+        "topic": "models"
+      },
+      "sha256": "ebf00727336b401403613508c96edb167036e483785f5ebd1eeb48798a07007d"
+    },
+    {
+      "id": "on-call-roster",
+      "path": "documents/on-call-roster.md",
+      "title": "Platform on-call roster",
+      "metadata": {
+        "doc_category": "roster",
+        "system": "platform",
+        "audience": "engineers",
+        "topic": "on-call"
+      },
+      "sha256": "0f11d068aca7f0f8de1fe2e1553f1ccd666c2921460a9c2ffe40b0f164867713"
+    },
+    {
+      "id": "vendor-integration-notes",
+      "path": "documents/vendor-integration-notes.md",
+      "title": "Third-party vendor integration notes",
+      "metadata": {
+        "doc_category": "external",
+        "system": "ai",
+        "audience": "all",
+        "topic": "vendors"
+      },
+      "sha256": "8fa85488854e094e947c2c5ec7c102cfc3128a6c5b30f612e464ded5113bb3a7"
+    }
+  ],
+  "auxiliary_sha256": {
+    "glossary.json": "78b2bd82f1cf27f9918e90c60b3b8db3b1302b5e8ea9bfcdff1cfb1eaad558cc",
+    "identity-policy.json": "267080a64676af02ce531618167409e0b5641c32ccf302760170d4884319e18c"
+  },
+  "manifest_sha256": "ab9a6d03e213acebddd373a247fc664cf13708b4a9ee3bf8da909b6be9ecfd44"
+}

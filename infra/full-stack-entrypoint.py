@@ -32,6 +32,10 @@ elif sys.argv[1] == "open-webui":
     os.environ["FORWARD_USER_INFO_HEADER_JWT_SECRET"] = os.environ["REFERENCE_IDENTITY_JWT_SECRET"]
     for name in ("OPENAI_API_KEY", "OPENAI_API_KEYS", "RAG_OPENAI_API_KEY", "RAG_EXTERNAL_RERANKER_API_KEY"):
         os.environ[name] = os.environ["LITELLM_MASTER_KEY"]
-    os.execv("/bin/bash", ["/bin/bash", "start.sh"])  # noqa: S606
+    source = Path("/app/backend/start.sh").read_text()
+    if "open_webui.main:app" not in source:
+        raise SystemExit("Pinned WebUI entrypoint contract changed")
+    source = source.replace("open_webui.main:app", "reference_webui_app:app")
+    os.execv("/bin/bash", ["/bin/bash", "-c", source, "/app/backend/start.sh"])  # noqa: S606 - pinned official startup script
 else:
     raise SystemExit("Unknown service")

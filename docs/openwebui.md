@@ -38,8 +38,10 @@ The initializer refuses to overwrite an existing secret directory. Bootstrap
 reconciles the two reserved demo groups to the explicit enrollment file, gives
 both accounts the normal `user` role and keeps a separate operator admin. It
 creates private native Knowledge collections and operator-owned RAG models.
-Unenrolled identities stay pending. It reuses files with the same name: changing
-the corpus requires an explicit re-ingestion; corpus versioning is roadmap work.
+Unenrolled identities stay pending. Knowledge collections are bound to the
+immutable corpus release. Bootstrap provisions each new release
+and rejects changed file content under an existing release; see
+[corpus versioning](corpus-versioning.md).
 
 Only OAuth2 Proxy publishes a user-facing port, on loopback. Open WebUI, LiteLLM
 and PostgreSQL have no host ports. The full-stack overlay changes the proxy
@@ -70,18 +72,23 @@ the browser has no administrative log access.
 | --- | --- | --- |
 | `reference-chat` | `google/gemini-2.5-flash` | Text answers; both scoped RAG models use this alias. |
 | `reference-vision` | `openai/gpt-4.1-mini` | Image input, text output. |
-| `reference-multimodal` | `google/gemini-3-flash-preview` | Image/audio/video input, text output. |
+| `reference-multimodal` | `google/gemini-3-flash-preview` | Checked images and sanitized speech text, text output. Video is blocked. |
 | `reference-embedding` | `openai/text-embedding-3-small` | Native Knowledge ingestion and query embeddings. |
 | `reference-rerank` | `voyageai/rerank-3-lite` | Native hybrid retrieval reranking. |
 
 Embedding and reranking aliases are hidden from the regular chat model picker.
-STT, TTS, image/video generation and media-upload UX are separate workflows;
-the [media probes](../scripts/verify_modalities.py) validate gateway input formats.
-Text PII checks do **not** inspect image pixels, audio or video. The probes contain
-only a generated red image/video and a generated tone. Sensitive media needs an
-OCR/transcription/privacy boundary before enabling a production workflow.
+Inline images and audio now pass mandatory [local OCR/STT privacy checks](media-guardrails.md)
+at the gateway. Detected sensitive image text blocks the image; audio becomes a
+redacted transcript. Remote URLs, video and unreliable recognition are blocked.
+The initial validation covers English text/speech. Faces, handwriting and other
+visual personal data remain outside this OCR boundary. TTS, image/video generation,
+microphone controls and the native media-upload UX remain separate workflows.
 
 ## Controls and compatibility
+
+The optional [Cloud.ru PII/secret pilot](cloudru-pii-pilot.md) adds a private local
+shadow scan of sanitized gateway input/context, embedding/rerank text and final
+answers. Its aggregate observations complement the mandatory Presidio checks.
 
 A mandatory global filter screens user input and native retrieved chunks. It
 fixes the operator's collection scope and pre-injection retrieval mode, rebuilds
@@ -111,6 +118,7 @@ and a separate model-quality benchmark.
 ```bash
 python3 scripts/verify_full_stack_config.py
 python3 scripts/test_full_stack_boundaries.py  # pinned images, no network/keys
+python3 scripts/test_media_boundaries.py       # actual local OCR/STT/PII, no provider keys
 
 # In the running stack; synthetic hosted calls incur model charges.
 docker compose --env-file .local/google-sso/compose.env \
@@ -125,3 +133,16 @@ suite uses operator-controlled identity enrollment; it does not simulate Google
 login. Real browser checks and observed hosted calls are recorded separately in
 [full-stack validation](full-stack-validation.md). The deterministic API
 [evaluation](evaluation-report.md) retains its own results and limitations.
+
+
+## Corpus releases and answer quality
+
+The optional [decision-model layer](decision-guardrails.md) observes text input, authorized passages and
+buffered output inside LiteLLM. It uses the existing OpenRouter credential, records typed scores with corpus
+and policy fingerprints, and runs in `shadow` mode. Existing ACL, pattern and Presidio checks remain mandatory.
+
+Bootstrap activates the versioned synthetic text corpus after checking stored document bytes and collection
+inventory. Models carry the active version/digest; the mandatory filter rejects stale release definitions.
+See [corpus versioning](corpus-versioning.md) for update/rollback instructions and the nontransactional
+activation boundary. Run the shared [quality benchmark](rag-quality.md) to measure paraphrases, citations,
+reference facts and refusals through native Knowledge with the enrolled scopes.

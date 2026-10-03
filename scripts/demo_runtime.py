@@ -16,12 +16,15 @@ from secure_rag.api import build_app
 from secure_rag.settings import Settings
 
 from ingestion.build_index import build
+from ingestion.corpus import release
 from ingestion.store import write_index
 
 
 def demo_settings(root: Path) -> Settings:
     index = root / "index.json"
-    write_index(index, build(Path("sample-data")), source_label="sample-data")
+    write_index(
+        index, build(Path("sample-data")), source_label="sample-data", corpus=release(Path("sample-data"))
+    )
     return Settings(
         index_path=index,
         gateway_mode="demo",

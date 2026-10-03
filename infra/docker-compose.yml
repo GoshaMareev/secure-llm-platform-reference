@@ -86,7 +86,10 @@ services:
   # Shared PII services. The RAG API and the LiteLLM gateway call the same pair,
   # so detection rules and the spaCy model live in one place.
   presidio-analyzer:
-    image: ${PRESIDIO_ANALYZER_IMAGE:-ghcr.io/data-privacy-stack/presidio-analyzer@sha256:ae8f6f111ac2f04e3fec552f7f80edd0dcbfa2dd69ee1b9e030475be31669885}
+    image: ${PRESIDIO_ANALYZER_IMAGE:-reference-presidio:en-ru-3.8.0}
+    build:
+      context: ..
+      dockerfile: infra/presidio/Dockerfile
     environment:
       RECOGNIZER_REGISTRY_CONF_FILE: /etc/presidio/recognizers.yaml
     volumes:

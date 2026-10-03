@@ -15,7 +15,11 @@ LiteLLM requires server-signed identity and policy context, then buffers and
 checks output before release. Provider credentials exist only in LiteLLM.
 
 The native application database is SQLite; pgvector holds vectors. Separate
-metadata-only runtime/audit volumes receive policy events with common IDs.
+metadata-only runtime/audit volumes receive policy events with common IDs. Native
+v2 audit is durable before successful response release and can be delivered by
+the private mTLS collector/shipper. Bounded chat/media admission, response
+deadlines, EN/RU Presidio and shadow decisions are documented in
+[versioned verification](verification/local-verification.md).
 This overlay keeps the API reference separate, rather than calling it as the
 Open WebUI retriever. See [ADR 0005](decisions/0005-native-openwebui-rag.md),
 [setup](openwebui.md) and [observed checks](full-stack-validation.md).
@@ -91,3 +95,25 @@ This protects against accidental prompt leakage into general observability. It d
 | demo gateway | LiteLLM backed by approved local or compatible inference |
 | JSONL audit spool | authenticated, encrypted SIEM transport |
 | synthetic catalog | versioned enterprise content connector |
+
+## Native durable delivery and stage timing
+
+```mermaid
+flowchart LR
+  UI[Native WebUI] --> GW[Gateway output policy]
+  UI --> UA[(WebUI audit segments)]
+  GW --> GA[(Gateway audit segments)]
+  UA --> S[Read-only spool shipper]
+  GA --> S
+  S -->|private mTLS| C[Durable HTTPS collector]
+  C --> D[(Deduplicated SQLite events)]
+  C -->|durable ACK| K[(Separate checkpoint volume)]
+  UI --> P[Prometheus bounded labels]
+  GW --> P
+```
+
+This native v2 path exports metadata only and never prompts, responses or OCR/STT text.
+The independent legacy API diagram above retains its separate unimplemented SIEM adapter.
+Native audit durability gates successful answers; operational write errors degrade health.
+Retrieval stage time includes embedding/reranking/PII subwork, so stage timers overlap.
+[Measured limits](verification/README.md) distinguish this local collector from enterprise SIEM.

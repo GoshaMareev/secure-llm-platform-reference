@@ -29,7 +29,9 @@ def load_glossary(path: Path | None) -> dict[str, list[str]]:
 
 class Retriever:
     def __init__(self, index_path: Path, *, glossary: dict[str, list[str]] | None = None) -> None:
-        _, self._chunks = read_index(index_path)
+        payload, self._chunks = read_index(index_path)
+        self.corpus = payload["corpus"]
+        self.pipeline_sha256 = payload["pipeline_sha256"]
         self._glossary = glossary or {}
 
     @staticmethod

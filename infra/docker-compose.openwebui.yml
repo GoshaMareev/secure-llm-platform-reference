@@ -4,7 +4,9 @@ services:
     command: ["--config", "/etc/oauth2-proxy/google.cfg"]
     volumes:
       - ./oauth2-proxy-google-openwebui.cfg:/etc/oauth2-proxy/google.cfg:ro
-    depends_on:
+    # Native WebUI is the upstream; the separate deterministic API has its own
+    # corpus-pinned identity policy and is not a dependency of this profile.
+    depends_on: !override
       open-webui:
         condition: service_healthy
 
@@ -14,14 +16,17 @@ services:
     command: !override []
     user: "${FULL_STACK_UID:?Initialize full-stack secrets}:${FULL_STACK_GID:?Initialize full-stack secrets}"
     environment: !override
+      LITELLM_WORKER_STARTUP_HOOKS: reference_capacity:install
       PYTHONPATH: /reference:/reference/secure-rag
       HOME: /tmp
       OR_SITE_URL: https://github.com/GoshaMareev/secure-llm-platform-reference
       OR_APP_NAME: Secure LLM Platform Reference
+      REFERENCE_DECISION_MODE: ${REFERENCE_DECISION_MODE:-shadow}
       PRESIDIO_ANALYZER_URL: http://presidio-analyzer:3000
       PRESIDIO_ANONYMIZER_URL: http://presidio-anonymizer:3000
     ports: !override []
     volumes: !override
+      - ../gateway/reference_capacity.py:/reference/reference_capacity.py:ro
       - ./full-stack-entrypoint.py:/reference/entrypoint.py:ro
       - ../gateway/openrouter-config.yaml:/reference/litellm.yaml:ro
       - ../gateway/reference_gateway.py:/reference/reference_gateway.py:ro
@@ -34,6 +39,32 @@ services:
     depends_on:
       webui-state-init:
         condition: service_completed_successfully
+      media-inspector:
+        condition: service_healthy
+
+  media-inspector:
+    profiles: [openwebui]
+    environment:
+      REFERENCE_RU_MEDIA_ENABLED: "${REFERENCE_RU_MEDIA_ENABLED:-false}"
+    build:
+      context: ..
+      dockerfile: apps/media-inspector/Dockerfile
+      target: runtime
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1536m
+    cpus: "2"
+    pids_limit: 64
+    networks: [platform]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
 
   webui-state-init:
     image: python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
@@ -164,6 +195,8 @@ services:
       PRESIDIO_ANONYMIZER_URL: http://presidio-anonymizer:3000
     secrets: [gateway-key, identity-jwt-secret, audit-salt, webui-secret, admin-password, identity-enrollment, postgres-password]
     volumes:
+      - ../gateway/reference_capacity.py:/reference/reference_capacity.py:ro
+      - ../gateway/reference_webui_app.py:/reference/reference_webui_app.py:ro
       - ./full-stack-entrypoint.py:/reference/entrypoint.py:ro
       - ../apps/rag-assistant:/reference/secure-rag:ro
       - ../ingestion:/reference/ingestion:ro
@@ -171,6 +204,11 @@ services:
       - ../apps/open-webui/reference_rerank.py:/reference/reference_rerank.py:ro
       - ../scripts/bootstrap_openwebui.py:/reference/bootstrap.py:ro
       - ../scripts/verify_openwebui.py:/reference/verify.py:ro
+      - ../scripts/verify_native_media.py:/reference/verify-native-media.py:ro
+      - ../scripts/verify_decisions.py:/reference/verify-decisions.py:ro
+      - ../scripts/evaluate_openwebui.py:/reference/evaluate.py:ro
+      - ../evals:/reference/evals:ro
+      - ../gateway/openrouter-config.yaml:/reference/litellm.yaml:ro
       - ../sample-data:/reference/sample-data:ro
       - webui-data:/app/backend/data
       - webui-audit:/var/log/reference/audit
@@ -192,6 +230,10 @@ services:
       retries: 24
       start_period: 30s
     networks: [platform]
+
+  prometheus:
+    volumes:
+      - ../observability/prometheus/native.yml:/etc/prometheus/prometheus.yml:ro
 
 volumes:
   webui-data:

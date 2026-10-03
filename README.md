@@ -8,7 +8,7 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 ## What this demonstrates
 
 - a primary **Google SSO → Open WebUI native Knowledge RAG → LiteLLM → OpenRouter** path, with pgvector, external embeddings/reranking and two document scopes ([run it](docs/openwebui.md));
-- text, image, audio and video input routes through one model gateway, checked on synthetic fixtures; text privacy controls do not inspect media content;
+- mandatory [local media privacy checks](docs/media-guardrails.md): OCR-screened images and sanitized speech transcripts through the model gateway; video and remote media URLs are blocked;
 - mandatory native context checks and gateway output checks, with direct API bypass attempts blocked ([live evidence](docs/full-stack-validation.md));
 - an independent deterministic API reference for reproducible offline evaluation;
 - a browser workspace with server-derived roles, scenario presets, cited answers and request IDs;
@@ -22,6 +22,12 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 - operational logs that never contain prompts or answers;
 - a separate, opt-in prompt-audit stream with hashed actor identifiers;
 - an evaluation gate with adversarial and false-positive probe cases, measured with and without guardrails;
+- a [32-case RAG quality benchmark](docs/rag-quality.md) shared by offline retrieval and native Knowledge;
+- optional [semantic guardrail observations](docs/decision-guardrails.md) with Jev via OpenRouter, and a
+  text-only evaluation adapter for Cloudflare Clef/Clef-flash;
+- an optional [local Russian PII/secret scan pilot](docs/cloudru-pii-pilot.md) with Cloud.ru
+  guardrails-llm-filter, observing residual detections after mandatory Presidio in shadow mode;
+- [immutable corpus release manifests](docs/corpus-versioning.md), versioned native collections and stale-index checks;
 - least-privilege container defaults and isolated observability volumes.
 
 ## Architecture
@@ -39,6 +45,8 @@ flowchart LR
     L --> O[OpenRouter]
     F -- text PII --> P[Presidio]
     L -- text PII --> P
+    L -- inline image / audio --> M[Private local OCR / STT]
+    M -- extracted text --> L
     F --> R[(Operational events)]
     L --> R
     F --> AU[(Separate audit events)]
@@ -188,6 +196,14 @@ make walkthrough
 
 Five real HTTP scenarios demonstrate answers, refusal, identity-derived denial, injection blocking and correlated operational/audit events. [Run and compare the reference](docs/walkthrough.md).
 
+## Versioned portfolio release
+
+The [evidence index](docs/verification/README.md) links measured native/offline quality,
+corpus rollback, isolated faults/load, EN/RU media, Jev shadow, durable mTLS audit delivery
+and Syft inventories. Native core passes32/32 three times; expanded125/128 and holdout30/32;
+offline core32/32. All measurements use synthetic data and preserve historical/rejected results.
+The [local guide](docs/verification/local-verification.md) runs without paid keys.
+
 ## Verification
 
 ```bash
@@ -223,10 +239,10 @@ tests/                    offline unit tests
 
 - verify the full protected Compose flow against a disposable Microsoft Entra ID app registration;
 - replace the synthetic server-owned subject policy with deployment-specific Entra claim mapping;
-- validate ingress provenance against the real proxy; extend audit rotation/durability and gateway outage tests;
-- generate an SBOM and dependency-license report, then repeat the security review against the hardened revision;
-- benchmark native semantic retrieval/reranking across paraphrases and version the corpus; keep the API control reference's known evaluation limitations explicit;
-- put a trained prompt-injection classifier behind the `Guardrails` interface and compare it on the same cases;
+- validate ingress provenance and sizing against the real enterprise proxy and workload;
+- resolve unconfirmed dependency licenses and repeat security review for deployment-specific changes;
+- obtain independent human holdout review and extend the benchmark to representative domain data;
+- calibrate the semantic shadow layer on representative/adversarial data and compare Clef before enabling blocking;
 - validate production inference quality separately from synthetic gateway/control checks.
 
 ## Scope and limitations

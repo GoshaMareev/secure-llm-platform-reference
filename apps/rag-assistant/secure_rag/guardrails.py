@@ -1,4 +1,4 @@
-"""Policy checks around the retrieval and generation path (English-language deployments).
+"""Policy checks around the retrieval and generation path (English and Russian deployments).
 
 Injection checks are transparent pattern rules on normalized text. Personal-data
 redaction is pluggable: the shared Presidio Analyzer/Anonymizer services (NER
@@ -72,6 +72,25 @@ def _rule(name: str, pattern: str) -> _Rule:
 # measure the false-positive side of these rules.
 INJECTION_RULES = (
     _rule(
+        "disable-safety-controls",
+        r"(?:^|[.!?]\s*)(?:please\s+)?(?:disable|remove|turn off|bypass)\b"
+        r"[^.\n]{0,30}\b(?:safety|security|privacy)\s+(?:checks?|controls?|filters?|guardrails?)\b",
+    ),
+    _rule(
+        "ru-override-instructions",
+        r"(?:^|[.!?]\s*)(?:пожалуйста[, ]+)?(?:игнорируй|забудь|отмени|обойди)\w*"
+        r"[^.\n]{0,60}(?:инструкци|правил|ограничени|политик|проверки)",
+    ),
+    _rule(
+        "ru-reveal-system-prompt",
+        r"(?:^|[.!?]\s*)(?:пожалуйста[, ]+)?(?:раскрой|выведи|покажи|напечатай)\w*"
+        r"[^.\n]{0,45}(?:скрыт|системн|секретн)[^.\n]{0,30}(?:промпт|инструкци|конфигураци)",
+    ),
+    _rule(
+        "ru-disable-controls",
+        r"(?:^|[.!?]\s*)(?:отключи|сними)\w*[^.\n]{0,35}(?:проверк|защит|ограничени|контрол)",
+    ),
+    _rule(
         "override-instructions",
         r"\b(?:ignore|disregard|forget|override|bypass)\b[^.\n]{0,40}?"
         r"\b(?:previous|prior|above|earlier|all|any|your|these|those)\b[^.\n]{0,20}?"
@@ -96,6 +115,11 @@ INJECTION_RULES = (
 # an answer it is an exfiltration attempt. Checked on context and output only.
 EXFILTRATION_RULES = (
     _rule(
+        "ru-credential-exfiltration",
+        r"(?:^|[.!?]\s*)(?:отправь|перешли|передай|загрузи|опубликуй)\w*"
+        r"[^.\n]{0,45}(?:парол|токен|секрет|api[- ]?(?:ключ|key)|credential)",
+    ),
+    _rule(
         "credential-exfiltration",
         r"\b(?:send|forward|post|email|upload|paste|share)\b[^.\n]{0,40}?"
         r"\b(?:credentials?|passwords?|tokens?|api keys?|secrets?)\b",
@@ -107,7 +131,7 @@ EXFILTRATION_RULES = (
 CONTEXT_ONLY_RULES = (
     _rule(
         "fake-role-marker",
-        r"(?:^|[\n.!?]\s*)(?:system|assistant|developer)\s*:"
+        r"(?:^|[\n.!?]\s*)(?:system|assistant|developer|система|ассистент|разработчик)\s*:"
         r"|<\s*/?\s*(?:system|instructions?)\s*>"
         r"|\[\s*(?:system|inst)\s*\]",
     ),

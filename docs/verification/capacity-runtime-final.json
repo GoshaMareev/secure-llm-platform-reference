@@ -1,0 +1,34 @@
+{
+  "source_commit": "2e48da023028a71bb29f9695b8a2b0989ce54bf9",
+  "profile": "isolated synthetic upstream; actual local STT; no provider keys",
+  "text_deadline": {
+    "status": 504,
+    "code": "request_deadline_exceeded",
+    "elapsed_seconds": 60.01,
+    "passed": true
+  },
+  "media_admission": {
+    "checks": [
+      {
+        "status": 200,
+        "code": null,
+        "has_answer": true,
+        "raw_pii": false,
+        "latency_ms": 10339.61
+      },
+      {
+        "status": 429,
+        "code": "media_capacity_exhausted",
+        "has_answer": false,
+        "raw_pii": false,
+        "latency_ms": 139.1
+      }
+    ],
+    "passed": true
+  },
+  "accepted": true,
+  "scope": "60-second incomplete body and two simultaneous benign WAVs; not a 120-second media soak",
+  "runtime_commit": "4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e",
+  "media_runtime_commit": "a62acc4ebe24448db72b4eaa60f4f1e5a03c5a88",
+  "fixture_sha256": "f73d9f7cca98f1ab1d291dd37792b40f5edf00dc1b6ed62edd8301f5049aaa7c"
+}

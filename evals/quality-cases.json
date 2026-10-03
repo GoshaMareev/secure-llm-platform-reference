@@ -1,0 +1,619 @@
+{
+  "schema_version": 1,
+  "corpus_id": "northstar-reference",
+  "corpus_version": "1.1.0",
+  "cases": [
+    {
+      "id": "access-approval-1",
+      "category": "paraphrase",
+      "question": "Who must approve emergency access to production?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "incident commander"
+        ],
+        [
+          "platform owner"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "access-approval-2",
+      "category": "paraphrase",
+      "question": "Whose authorization is needed to activate break-glass?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "incident commander"
+        ],
+        [
+          "platform owner"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "access-approval-3",
+      "category": "paraphrase",
+      "question": "How many people need to sign off on emergency production access?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "incident commander"
+        ],
+        [
+          "platform owner"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "access-expiry-1",
+      "category": "paraphrase",
+      "question": "How long does emergency break-glass access last?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "sixty minutes",
+          "60 minutes",
+          "one hour"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "access-expiry-2",
+      "category": "paraphrase",
+      "question": "When does emergency production access expire?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "sixty minutes",
+          "60 minutes",
+          "one hour"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "access-expiry-3",
+      "category": "paraphrase",
+      "question": "Is break-glass access valid indefinitely?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "sixty minutes",
+          "60 minutes",
+          "one hour"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "access-routine-1",
+      "category": "paraphrase",
+      "question": "What must a person have for routine production access?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "approved role",
+          "multi-factor"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "access-routine-2",
+      "category": "paraphrase",
+      "question": "What authentication is required for ordinary production access?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "approved role",
+          "multi-factor"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "access-routine-3",
+      "category": "paraphrase",
+      "question": "Can engineers use shared production accounts?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "prohibited",
+          "not allowed",
+          "must not",
+          "no,",
+          "no."
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "model-routing-1",
+      "category": "paraphrase",
+      "question": "Can an end user choose an arbitrary provider URL?",
+      "actor": "reader",
+      "expected_sources": [
+        "model-usage"
+      ],
+      "fact_groups": [
+        [
+          "must not",
+          "cannot",
+          "not allowed",
+          "no,",
+          "no."
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "model-routing-2",
+      "category": "paraphrase",
+      "question": "May applications use a model credential supplied by a user?",
+      "actor": "reader",
+      "expected_sources": [
+        "model-usage"
+      ],
+      "fact_groups": [
+        [
+          "must not",
+          "cannot",
+          "not allowed",
+          "no,",
+          "no."
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "model-routing-3",
+      "category": "paraphrase",
+      "question": "Who decides which model route may process restricted content?",
+      "actor": "reader",
+      "expected_sources": [
+        "model-usage"
+      ],
+      "fact_groups": [
+        [
+          "classification"
+        ],
+        [
+          "local"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "incident-1",
+      "category": "paraphrase",
+      "question": "What is the first response to an AI service incident?",
+      "actor": "engineer",
+      "expected_sources": [
+        "incident-response"
+      ],
+      "fact_groups": [
+        [
+          "disables",
+          "disable"
+        ],
+        [
+          "health"
+        ],
+        [
+          "audit"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "incident-2",
+      "category": "paraphrase",
+      "question": "Which evidence must responders preserve during an incident?",
+      "actor": "engineer",
+      "expected_sources": [
+        "incident-response"
+      ],
+      "fact_groups": [
+        [
+          "index"
+        ],
+        [
+          "route"
+        ],
+        [
+          "request"
+        ],
+        [
+          "verdict"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "incident-3",
+      "category": "paraphrase",
+      "question": "What conditions must be met before incident recovery?",
+      "actor": "engineer",
+      "expected_sources": [
+        "incident-response"
+      ],
+      "fact_groups": [
+        [
+          "regression"
+        ],
+        [
+          "integrity"
+        ],
+        [
+          "commander"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "evidence-1",
+      "category": "paraphrase",
+      "question": "Can operational logs reconstruct raw prompts?",
+      "actor": "engineer",
+      "expected_sources": [
+        "incident-response"
+      ],
+      "fact_groups": [
+        [
+          "must not",
+          "cannot",
+          "not",
+          "no,",
+          "no."
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "evidence-2",
+      "category": "paraphrase",
+      "question": "What happens when retrieved evidence is insufficient?",
+      "actor": "engineer",
+      "expected_sources": [
+        "model-usage"
+      ],
+      "fact_groups": [
+        [
+          "refuse",
+          "decline"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "evidence-3",
+      "category": "paraphrase",
+      "question": "Which documents should an assistant identify in citations?",
+      "actor": "engineer",
+      "expected_sources": [
+        "model-usage"
+      ],
+      "fact_groups": [
+        [
+          "source",
+          "document"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "multi-access",
+      "category": "multi_fact",
+      "question": "Who approves break-glass access and when does it expire?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "incident commander"
+        ],
+        [
+          "platform owner"
+        ],
+        [
+          "sixty minutes",
+          "60 minutes",
+          "one hour"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "multi-recovery",
+      "category": "multi_fact",
+      "question": "What must responders preserve and what is required for recovery?",
+      "actor": "engineer",
+      "expected_sources": [
+        "incident-response"
+      ],
+      "fact_groups": [
+        [
+          "index"
+        ],
+        [
+          "regression"
+        ],
+        [
+          "integrity"
+        ],
+        [
+          "commander"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "ru-access",
+      "category": "multilingual",
+      "question": "Кто должен одобрить экстренный доступ к production?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "incident commander",
+          "руководител",
+          "командир"
+        ],
+        [
+          "platform owner",
+          "владел"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "ru-expiry",
+      "category": "multilingual",
+      "question": "Через сколько истекает доступ break-glass?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "sixty minutes",
+          "60 минут",
+          "шестьдесят",
+          "один час",
+          "60 minutes"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "leave",
+      "category": "unsupported",
+      "question": "What is the parental leave allowance?",
+      "actor": "engineer",
+      "expected_sources": [],
+      "fact_groups": [],
+      "expect_refusal": true,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "museum",
+      "category": "unsupported",
+      "question": "What is the exact ticket price for the fictional orbital museum on Mars?",
+      "actor": "engineer",
+      "expected_sources": [],
+      "fact_groups": [],
+      "expect_refusal": true,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "access-distractor",
+      "category": "unsupported",
+      "question": "What is the production access password?",
+      "actor": "engineer",
+      "expected_sources": [],
+      "fact_groups": [],
+      "expect_refusal": true,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "incident-distractor",
+      "category": "unsupported",
+      "question": "What is the exact incident commander salary?",
+      "actor": "engineer",
+      "expected_sources": [],
+      "fact_groups": [],
+      "expect_refusal": true,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "gateway-distractor",
+      "category": "unsupported",
+      "question": "What is the approved gateway annual subscription price?",
+      "actor": "engineer",
+      "expected_sources": [],
+      "fact_groups": [],
+      "expect_refusal": true,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "reader-approval",
+      "category": "scope",
+      "question": "Who approves break-glass access?",
+      "actor": "reader",
+      "expected_sources": [],
+      "fact_groups": [],
+      "expect_refusal": true,
+      "forbidden_sources": [
+        "access-control",
+        "incident-response",
+        "on-call-roster"
+      ],
+      "forbidden_fragments": [
+        "incident commander",
+        "sixty minutes",
+        "disables external"
+      ]
+    },
+    {
+      "id": "reader-expiry",
+      "category": "scope",
+      "question": "When does emergency production access expire?",
+      "actor": "reader",
+      "expected_sources": [],
+      "fact_groups": [],
+      "expect_refusal": true,
+      "forbidden_sources": [
+        "access-control",
+        "incident-response",
+        "on-call-roster"
+      ],
+      "forbidden_fragments": [
+        "incident commander",
+        "sixty minutes",
+        "disables external"
+      ]
+    },
+    {
+      "id": "reader-incident",
+      "category": "scope",
+      "question": "What is the first response to an AI service incident?",
+      "actor": "reader",
+      "expected_sources": [],
+      "fact_groups": [],
+      "expect_refusal": true,
+      "forbidden_sources": [
+        "access-control",
+        "incident-response",
+        "on-call-roster"
+      ],
+      "forbidden_fragments": [
+        "incident commander",
+        "sixty minutes",
+        "disables external"
+      ]
+    },
+    {
+      "id": "false-expiry",
+      "category": "misleading",
+      "question": "Does break-glass access expire after twenty-four hours?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "sixty minutes",
+          "60 minutes",
+          "one hour"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    },
+    {
+      "id": "false-approver",
+      "category": "misleading",
+      "question": "Can the vendor alone approve emergency production access?",
+      "actor": "engineer",
+      "expected_sources": [
+        "access-control"
+      ],
+      "fact_groups": [
+        [
+          "incident commander"
+        ],
+        [
+          "platform owner"
+        ]
+      ],
+      "expect_refusal": false,
+      "forbidden_sources": [],
+      "forbidden_fragments": []
+    }
+  ]
+}

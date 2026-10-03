@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .chunking import chunk_text
+from .corpus import release
 from .models import IndexedChunk
 from .store import write_index
 from .vectorizer import tokenize, vectorize
@@ -70,8 +71,11 @@ def main() -> None:
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    corpus = release(args.source)
     chunks = build(args.source)
-    write_index(args.output, chunks, source_label=args.source.name)
+    if release(args.source) != corpus:
+        raise ValueError("Corpus changed while building index")
+    write_index(args.output, chunks, source_label=args.source.name, corpus=corpus)
     print(f"Indexed {len(chunks)} chunks into {args.output}")
 
 

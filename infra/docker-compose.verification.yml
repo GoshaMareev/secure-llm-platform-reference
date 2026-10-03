@@ -1,0 +1,38 @@
+# Use with base + Google + OpenWebUI files, a fresh -p name and synthetic env.
+# Provider routes are fixed to the private synthetic upstream.
+# Loopback control bridge is operator-only; no hosted credentials.
+services:
+  oauth2-proxy:
+    profiles: !override [unused-identity]
+  litellm:
+    ports: !override ["127.0.0.1:4089:4000"]
+    environment:
+      REFERENCE_DECISION_MODE: 'off'
+    volumes:
+      - ../gateway/verification-config.yaml:/reference/litellm.yaml:ro
+    networks: !override [platform, verification-control]
+    depends_on:
+      test-model: {condition: service_started}
+  media-inspector:
+    environment: {REFERENCE_RU_MEDIA_ENABLED: 'true'}
+  open-webui:
+    networks: !override [platform, verification-control]
+    ports: ['127.0.0.1:8089:8080']
+  test-model:
+    profiles: !override [openwebui]
+    environment: {VERIFICATION_FAULT_FILE: /operator/fault.json, PYTHONPATH: '/reference'}
+    volumes:
+      - ../.local/verification/controls:/operator:ro
+      - ../ingestion:/reference/ingestion:ro
+      - ../sample-data:/reference/sample-data:ro
+    networks: !override [platform]
+  presidio-analyzer:
+    ports: !override []
+    networks: !override [platform]
+  presidio-anonymizer:
+    ports: !override []
+    networks: !override [platform]
+networks:
+  verification-control: {}
+  gateway: {internal: true}
+  identity-egress: {internal: true}

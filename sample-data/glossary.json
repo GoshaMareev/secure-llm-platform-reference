@@ -1,9 +1,341 @@
 {
-  "emergency": ["break-glass", "incident"],
-  "outage": ["incident", "degradation"],
-  "llm": ["model", "inference"],
-  "production": ["platform", "service"],
-  "choose": ["accept", "select"],
-  "user": ["end-user"],
-  "provider": ["model"]
+  "emergency": [
+    "break-glass",
+    "incident"
+  ],
+  "outage": [
+    "incident",
+    "degradation"
+  ],
+  "llm": [
+    "model",
+    "inference"
+  ],
+  "production": [
+    "platform",
+    "service"
+  ],
+  "choose": [
+    "determines",
+    "classification",
+    "route"
+  ],
+  "user": [
+    "end-user"
+  ],
+  "provider": [
+    "model"
+  ],
+  "authorization": [
+    "approval",
+    "approves"
+  ],
+  "activate": [
+    "activation",
+    "approval"
+  ],
+  "sign": [
+    "approval"
+  ],
+  "off": [
+    "approval"
+  ],
+  "approves": [
+    "approval"
+  ],
+  "approve": [
+    "approval"
+  ],
+  "long": [
+    "expires"
+  ],
+  "duration": [
+    "expires"
+  ],
+  "expire": [
+    "expires"
+  ],
+  "expiry": [
+    "expires"
+  ],
+  "when": [
+    "expires"
+  ],
+  "routine": [
+    "routine",
+    "role",
+    "authentication"
+  ],
+  "ordinary": [
+    "routine"
+  ],
+  "authentication": [
+    "authentication",
+    "multi-factor"
+  ],
+  "conditions": [
+    "recovery",
+    "requires"
+  ],
+  "met": [
+    "requires"
+  ],
+  "responders": [
+    "responder"
+  ],
+  "preserve": [
+    "preserved"
+  ],
+  "during": [
+    "incident"
+  ],
+  "response": [
+    "responder"
+  ],
+  "first": [
+    "first"
+  ],
+  "recovery": [
+    "recovery",
+    "regression",
+    "integrity"
+  ],
+  "routing": [
+    "route"
+  ],
+  "decides": [
+    "determines"
+  ],
+  "process": [
+    "process",
+    "route"
+  ],
+  "restricted": [
+    "restricted",
+    "classification",
+    "local"
+  ],
+  "content": [
+    "content"
+  ],
+  "which": [
+    "route"
+  ],
+  "raw": [
+    "raw",
+    "prompts"
+  ],
+  "logs": [
+    "logs"
+  ],
+  "reconstruct": [
+    "reconstruct"
+  ],
+  "documents": [
+    "document"
+  ],
+  "identify": [
+    "identify"
+  ],
+  "citations": [
+    "citations"
+  ],
+  "insufficient": [
+    "insufficient",
+    "refuse"
+  ],
+  "одобрить": [
+    "approval"
+  ],
+  "одобряет": [
+    "approval"
+  ],
+  "одобрение": [
+    "approval"
+  ],
+  "согласует": [
+    "approval"
+  ],
+  "согласуют": [
+    "approval"
+  ],
+  "согласование": [
+    "approval"
+  ],
+  "разрешает": [
+    "approval"
+  ],
+  "экстренный": [
+    "emergency",
+    "break-glass"
+  ],
+  "экстренного": [
+    "emergency",
+    "break-glass"
+  ],
+  "экстренном": [
+    "emergency",
+    "break-glass"
+  ],
+  "доступ": [
+    "access"
+  ],
+  "доступа": [
+    "access"
+  ],
+  "доступом": [
+    "access"
+  ],
+  "истекает": [
+    "expires"
+  ],
+  "срок": [
+    "expires"
+  ],
+  "длительность": [
+    "expires"
+  ],
+  "маршрут": [
+    "route"
+  ],
+  "маршрута": [
+    "route"
+  ],
+  "маршрутизации": [
+    "route"
+  ],
+  "модели": [
+    "model"
+  ],
+  "модель": [
+    "model"
+  ],
+  "контент": [
+    "content"
+  ],
+  "данные": [
+    "data"
+  ],
+  "данных": [
+    "data"
+  ],
+  "ограниченный": [
+    "restricted"
+  ],
+  "ограниченного": [
+    "restricted"
+  ],
+  "ограниченные": [
+    "restricted"
+  ],
+  "ограниченных": [
+    "restricted"
+  ],
+  "локальный": [
+    "local"
+  ],
+  "классификация": [
+    "classification"
+  ],
+  "инцидент": [
+    "incident"
+  ],
+  "инцидента": [
+    "incident"
+  ],
+  "инциденте": [
+    "incident"
+  ],
+  "восстановления": [
+    "recovery"
+  ],
+  "восстановление": [
+    "recovery"
+  ],
+  "проверки": [
+    "check",
+    "evaluation"
+  ],
+  "целостность": [
+    "integrity"
+  ],
+  "регрессии": [
+    "regression"
+  ],
+  "сохраняют": [
+    "preserved"
+  ],
+  "сохранить": [
+    "preserved"
+  ],
+  "доказательства": [
+    "evidence",
+    "preserved"
+  ],
+  "источники": [
+    "sources"
+  ],
+  "аудит": [
+    "audit"
+  ],
+  "проверяют": [
+    "reviewed"
+  ],
+  "активации": [
+    "activation"
+  ],
+  "активацию": [
+    "activation"
+  ],
+  "общие": [
+    "shared"
+  ],
+  "аккаунты": [
+    "accounts"
+  ],
+  "учётные": [
+    "accounts"
+  ],
+  "записи": [
+    "accounts"
+  ],
+  "обычного": [
+    "routine"
+  ],
+  "обычный": [
+    "routine"
+  ],
+  "аутентификация": [
+    "authentication"
+  ],
+  "сервисной": [
+    "service"
+  ],
+  "идентичности": [
+    "identities"
+  ],
+  "идентичность": [
+    "identities"
+  ],
+  "генерации": [
+    "generation"
+  ],
+  "внешних": [
+    "external"
+  ],
+  "ответов": [
+    "answers"
+  ],
+  "первым": [
+    "first"
+  ],
+  "отключает": [
+    "disables"
+  ],
+  "цитаты": [
+    "citations"
+  ],
+  "недостаточно": [
+    "insufficient"
+  ]
 }

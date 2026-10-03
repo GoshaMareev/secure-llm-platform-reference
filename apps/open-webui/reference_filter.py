@@ -4,16 +4,16 @@ version: 0.1.0
 description: Mandatory checks around native Knowledge retrieval; no custom retrieval.
 """
 
-import asyncio
 import hashlib
 import hmac
-import json
 import os
 import time
 import uuid
 
 import jwt
 from fastapi import HTTPException
+from secure_rag.async_work import run_blocking
+from secure_rag.decision_guardrails import digest, messages_digest
 from secure_rag.guardrails import (
     CONTEXT_ONLY_RULES,
     EXFILTRATION_RULES,
@@ -22,7 +22,11 @@ from secure_rag.guardrails import (
     PiiServiceError,
     _matches,
 )
+from secure_rag.native_audit import emit
 from secure_rag.presidio_pii import PresidioHttpRedactor
+from secure_rag.telemetry import AUDIT_ERRORS, REQUEST_CONTEXT
+
+from ingestion.native_release import active_release
 
 
 class Filter:
@@ -35,11 +39,22 @@ class Filter:
         from reference_rerank import bind
 
         bind(__request__, __user__)
-        request_id = str(uuid.uuid4())
+        request_id = (REQUEST_CONTEXT.get() or {}).get("request_id") or str(uuid.uuid4())
         __metadata__["reference_request_id"] = request_id
         meta = (__model__.get("info") or {}).get("meta") or {}
         grounded = bool(meta.get("reference_grounded"))
         if grounded:
+            try:
+                corpus = await run_blocking(active_release)
+            except (OSError, ValueError, KeyError):
+                self.deny(__user__, request_id, "corpus_release_unavailable")
+            if (
+                meta.get("reference_manifest_sha256") != corpus["manifest_sha256"]
+                or meta.get("reference_corpus_version") != corpus["corpus_version"]
+            ):
+                self.deny(__user__, request_id, "corpus_version_mismatch")
+            __metadata__["reference_corpus_version"] = corpus["corpus_version"]
+            __metadata__["reference_manifest_sha256"] = corpus["manifest_sha256"]
             # The operator's model fixes the collection scope and retrieval
             # mode. A client cannot remove Knowledge or switch to tool-only RAG.
             body["files"] = [dict(item) for item in meta.get("knowledge", [])]
@@ -57,7 +72,7 @@ class Filter:
             for part in parts or []:
                 if part.get("type") != "text":
                     continue
-                decision = await asyncio.to_thread(self.guardrails.check_input, part.get("text", ""))
+                decision = await run_blocking(self.guardrails.check_input, part.get("text", ""))
                 if decision.blocked:
                     self.deny(__user__, request_id, decision.verdicts[0])
                 part["text"] = decision.text
@@ -88,13 +103,13 @@ class Filter:
                     if _matches(text, (*INJECTION_RULES, *EXFILTRATION_RULES, *CONTEXT_ONLY_RULES)):
                         quarantined = True
                         continue
-                    kept_docs.append((await asyncio.to_thread(self.pii.redact, text))[0])
+                    kept_docs.append((await run_blocking(self.pii.redact, text))[0])
                     if index < len(source.get("distances", [])):
                         kept_distances.append(source["distances"][index])
                     item = metadata[index] if index < len(metadata) else {}
                     kept_metadata.append(
                         {
-                            k: (await asyncio.to_thread(self.pii.redact, v))[0] if isinstance(v, str) else v
+                            k: (await run_blocking(self.pii.redact, v))[0] if isinstance(v, str) else v
                             for k, v in item.items()
                         }
                     )
@@ -104,7 +119,7 @@ class Filter:
                 source["metadata"] = kept_metadata
                 source["distances"] = kept_distances
                 source["source"] = {
-                    k: (await asyncio.to_thread(self.pii.redact, v))[0] if isinstance(v, str) else v
+                    k: (await run_blocking(self.pii.redact, v))[0] if isinstance(v, str) else v
                     for k, v in source.get("source", {}).items()
                 }
                 if kept_docs:
@@ -114,7 +129,10 @@ class Filter:
         except PiiServiceError:
             self.deny(__user__, request_id, "pii_check_unavailable_blocked")
         if sources:
-            prompt = __metadata__.get("user_prompt", "")
+            try:
+                prompt = (await run_blocking(self.pii.redact, __metadata__.get("user_prompt", "")))[0]
+            except PiiServiceError:
+                self.deny(__user__, request_id, "pii_check_unavailable_blocked")
             # Open WebUI's add_or_update_user_message(append=False) PREPENDS
             # rather than replaces. Discard the previous unfiltered RAG copy.
             for message in reversed(body["messages"]):
@@ -129,6 +147,25 @@ class Filter:
         # A server-signed context transfers the request ID across OpenAI's
         # metadata stripping step. LiteLLM consumes it before provider routing.
         now = int(time.time())
+        # Only the passages already authorized, reranked and screened above
+        # reach the decision model. The gateway verifies this signed binding,
+        # then consumes the private field before routing to the chat provider.
+        query = __metadata__.get("user_prompt")
+        if not isinstance(query, str):
+            query = next(
+                (m.get("content", "") for m in reversed(body.get("messages", [])) if m.get("role") == "user"),
+                "",
+            )
+            if isinstance(query, list):
+                query = " ".join(p.get("text", "") for p in query if p.get("type") == "text")
+        try:
+            query = (await run_blocking(self.pii.redact, query))[0]
+        except PiiServiceError:
+            self.deny(__user__, request_id, "pii_check_unavailable_blocked")
+        body["reference_decision_context"] = {
+            "query": query,
+            "passages": [text for source in accepted for text in source["document"]],
+        }
         body["reference_context_token"] = jwt.encode(
             {
                 "sub": __user__["id"],
@@ -137,6 +174,10 @@ class Filter:
                 "iat": now,
                 "exp": now + 300,
                 "quarantined": quarantined,
+                "decision_context_sha256": digest(body["reference_decision_context"]),
+                "messages_sha256": messages_digest(body.get("messages", [])),
+                "corpus_version": __metadata__.get("reference_corpus_version"),
+                "manifest_sha256": __metadata__.get("reference_manifest_sha256"),
             },
             os.environ["REFERENCE_IDENTITY_JWT_SECRET"],
             algorithm="HS256",
@@ -164,6 +205,9 @@ class Filter:
         return body
 
     def deny(self, user, request_id, verdict):
+        if REQUEST_CONTEXT.get() is not None:
+            REQUEST_CONTEXT.get()["error_code"] = verdict
+            REQUEST_CONTEXT.get()["error_status"] = 400
         self.record(user, request_id, verdict, "blocked")
         raise HTTPException(
             400,
@@ -184,14 +228,11 @@ class Filter:
             "outcome": outcome,
             "verdict": verdict,
         }
-        for channel, event in (
-            ("runtime", {**common, "event": "rag_policy"}),
-            ("audit", {**common, "event": "rag_access", "actor_hash": actor}),
-        ):
-            fd = os.open(
-                f"/var/log/reference/{channel}/{channel}.jsonl", os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600
-            )
-            try:
-                os.write(fd, (json.dumps(event) + "\n").encode())
-            finally:
-                os.close(fd)
+        try:
+            emit("webui", "audit", {**common, "event": "rag_access", "actor_hash": actor})
+        except OSError:
+            AUDIT_ERRORS.labels(component="webui").inc()
+            if REQUEST_CONTEXT.get() is not None:
+                REQUEST_CONTEXT.get().update(error_code="audit_unavailable", error_status=503)
+            raise HTTPException(503, detail="Request unavailable") from None
+        emit("webui", "runtime", {**common, "event": "rag_policy"})

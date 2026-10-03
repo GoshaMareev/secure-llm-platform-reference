@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "base_commit": "0f47fa20d1ce291a5b43ef823513211faf86930d",
+  "artifacts": {
+    "quality-expanded.json": "2453df77a6ea6dcde69af6de3c3bd62f9c0bf33afc61f8928de6cac781e922ff",
+    "media-cases.json": "373c6e91e76baec9eede5ab6eb5ee4151fbd4726960461d4e8d3c78e3b1f456f",
+    "decision-expanded.json": "d9280369627cd37de894c29189ba21f59a4b1b4e47b4999b0ee288f1fb6fab7a",
+    "decision-expanded-v2.json": "bae22d4a474ddf8c085ace349d39b5d8be7256f9a2facc8902c907bb26f5ddc6",
+    "cloudru_cases.py": "7486275bc50863a1c39663b47c977845ab9fa81c46c10edc99d62ac9b2e38a0a"
+  },
+  "counts": {
+    "core": 32,
+    "development": 64,
+    "holdout": 32,
+    "added_en": 48,
+    "added_ru": 48,
+    "decision": 128,
+    "media_image": 32,
+    "media_audio": 32,
+    "cloudru_sensitive": 50,
+    "cloudru_benign": 14
+  },
+  "pre_inference_corrections": [
+    "Shortened explicit fake media API token to pass publication scanner; labels and split unchanged.",
+    "Rejected duplicate output states in decision candidate before any inference; v2 adds unique counterfactual environments and contradictory sources. Candidate retained, split unchanged."
+  ],
+  "active_decision_suite": "decision-expanded-v2.json"
+}

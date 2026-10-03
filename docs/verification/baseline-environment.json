@@ -1,0 +1,47 @@
+{
+  "commit": "0f47fa20d1ce291a5b43ef823513211faf86930d",
+  "machine": {
+    "os": "Darwin",
+    "release": "27.0.0",
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "logical_cpus": 8,
+    "memory_bytes": 17179869184
+  },
+  "container_images": [
+    "secure-llm-platform-reference-media-inspector:latest sha256:c537bc33539f9583204cdeda21f798aa07856f7602ade1d2fd71442f91e6ad75",
+    "media-check-6914bd5554b9-media-inspector:latest sha256:b00987f7baf0c6d3e28900e68ea643b8d416744e626f51b60c9b3720429d309a",
+    "reference-media-fixtures:latest sha256:b70e03b183686cb71313852f5d66e468e392bbc984d0374177dc709a15f33984",
+    "secure-llm-platform-reference-rag-assistant:latest sha256:2e24cb33104ef1f6c8f45a1d9e53be6781293c1680c1d25677d72795b9e93493",
+    "ghcr.io/berriai/litellm:main-stable sha256:f63fb81b831b170ec16851e23c36ac5bf52ef106b271406429524a2ed730bbfd",
+    "ghcr.io/open-webui/open-webui:<none> sha256:0487ad4a5a4b986062dedace806c3ef1e88fec38c10d1e64d6a5501c66671e5e",
+    "python:<none> sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea",
+    "rag-back-test-rag-ui:latest sha256:6d054034cf63e53b9ff3f8f8c643c1724375417aeade9dc57bd449d4c284c799",
+    "ghcr.io/open-webui/open-webui:v0.11.3 sha256:751b617714b91e4cfd0186a509c72480c858e012976103b09a30dad053c36175",
+    "ghcr.io/berriai/litellm:v1.98.0 sha256:20b5044b619055374061a6d5b7b08754cad75aeabbf82ddf4f69cc0cf80ddaf4",
+    "pgvector/pgvector:<none> sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f",
+    "postgres:17-alpine sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73",
+    "ghcr.io/data-privacy-stack/presidio-analyzer:latest sha256:ae8f6f111ac2f04e3fec552f7f80edd0dcbfa2dd69ee1b9e030475be31669885",
+    "ghcr.io/data-privacy-stack/presidio-anonymizer:latest sha256:e567013893ebc80994e3799f6f55c86aa1f0b0fadb779571ab346f0ec45365c1",
+    "golang:1.26.4 sha256:f96cc555eb8db430159a3aa6797cd5bae561945b7b0fe7d0e284c63a3b291609",
+    "quay.io/oauth2-proxy/oauth2-proxy:<none> sha256:aa0bd8dd5ab0c78e4c91c92755ad573a5f92241f88138b4141b8ec803463b4fd",
+    "fluent/fluent-bit:<none> sha256:4af3920cc2ff976200e0fc09f23e7ca4ee7d4477a6d592cb496fc39378181b02",
+    "grafana/loki:<none> sha256:e689cc634841c937de4d7ea6157f17e29cf257d6a320f1c293ab18d46cfea986"
+  ],
+  "report_hashes": {
+    "media-evaluation.json": "532d5feab5dbf0a625e6f82b94460614a32a9d7807c41c6bd645af5552a8288b",
+    "rag-quality-native.json": "26b177013c0de4fa018dda8ff9c772dc111d6c5a9863e1ba887479e0fe3615e1",
+    "decision-evaluation-jev.md": "f2d420d0c2893cfb94b2f7813a44ecc25e4b46f8ffcde1e722b703da502b035e",
+    "decision-evaluation-jev.json": "7aa9af232126ca09bb39e5b73fa20b896cc98ba2976659d121b6d9bf5f30b5ce",
+    "rag-quality-offline.json": "7961af816ad43f95c323e777c986f4802561582c611ba59e30b3bc4b3c2d41eb",
+    "media-native-evaluation.json": "dc50a4889db45010b6e54a7ba49190ba519e79e7ae1b0faab6a648bbbb59f35c",
+    "rag-quality-offline.md": "2c52e45f5610363a77f24fd3d0d9dfcd49dc2f8e91aef4e162744da2e74e3afa",
+    "rag-quality-native.md": "2fe059b633aa6507f78986474c6c762104d126d4274db59140c5187934341d23"
+  },
+  "docker_resources": {
+    "Architecture": "aarch64",
+    "NCPU": 8,
+    "MemTotal": 8319770624,
+    "ServerVersion": "29.8.1"
+  }
+}

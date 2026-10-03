@@ -33,6 +33,7 @@ from secure_rag.retrieval import Retriever, load_glossary  # noqa: E402
 from secure_rag.service import POLICY_REFUSAL, RAGService  # noqa: E402
 
 from ingestion.build_index import build  # noqa: E402
+from ingestion.corpus import release  # noqa: E402
 from ingestion.store import write_index  # noqa: E402
 
 
@@ -237,7 +238,12 @@ class PipelineTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         index_path = Path(self.temporary.name) / "index.json"
-        write_index(index_path, build(ROOT / "sample-data"), source_label="sample-data")
+        write_index(
+            index_path,
+            build(ROOT / "sample-data"),
+            source_label="sample-data",
+            corpus=release(ROOT / "sample-data"),
+        )
         glossary = load_glossary(ROOT / "sample-data" / "glossary.json")
         retriever = Retriever(index_path, glossary=glossary)
         self.guarded = RAGService(

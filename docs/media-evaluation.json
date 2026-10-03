@@ -1,0 +1,140 @@
+{
+  "policy_version": "local-media-1",
+  "asr_revision": "536b0662742c02347bc0e980a01041f333bce120",
+  "test_mode": "local-only: actual OCR/STT/Presidio and gateway pre-call hook, no provider request",
+  "passed": 18,
+  "total": 18,
+  "cases": [
+    {
+      "case_id": "image-policy",
+      "verdict": "image_text_checked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 179.9
+    },
+    {
+      "case_id": "image-no-text",
+      "verdict": "image_text_checked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 105.53
+    },
+    {
+      "case_id": "image-email",
+      "verdict": "image_sensitive_text_blocked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 161.9
+    },
+    {
+      "case_id": "image-phone",
+      "verdict": "image_sensitive_text_blocked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 181.31
+    },
+    {
+      "case_id": "image-card",
+      "verdict": "image_sensitive_text_blocked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 131.83
+    },
+    {
+      "case_id": "image-credential",
+      "verdict": "image_sensitive_text_blocked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 120.01
+    },
+    {
+      "case_id": "image-name",
+      "verdict": "image_sensitive_text_blocked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 121.04
+    },
+    {
+      "case_id": "image-injection",
+      "verdict": "media_injection_blocked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 131.18
+    },
+    {
+      "case_id": "image-metadata",
+      "verdict": "image_text_checked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 99.35
+    },
+    {
+      "case_id": "image-corrupt",
+      "verdict": "invalid_media",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 25.63
+    },
+    {
+      "case_id": "image-dimensions",
+      "verdict": "media_dimensions_limit",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 7.35
+    },
+    {
+      "case_id": "remote-url",
+      "verdict": "remote_media_blocked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 4.47
+    },
+    {
+      "case_id": "video",
+      "verdict": "unsupported_media_input",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 4.34
+    },
+    {
+      "case_id": "audio-benign",
+      "verdict": "audio_transcript_checked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 9974.01
+    },
+    {
+      "case_id": "audio-email",
+      "verdict": "audio_sensitive_text_unresolved",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 10456.68
+    },
+    {
+      "case_id": "audio-injection",
+      "verdict": "media_injection_blocked",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 9833.43
+    },
+    {
+      "case_id": "audio-tone",
+      "verdict": "media_language_not_supported",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 4696.92
+    },
+    {
+      "case_id": "audio-corrupt",
+      "verdict": "invalid_media",
+      "passed": true,
+      "privacy_check": true,
+      "latency_ms": 16.01
+    }
+  ],
+  "source_sha256": {
+    "gateway": "c795d10888003c58ea7dfa8af5deddd236238a079c9519ebf327e6100cacfd11",
+    "media_policy": "b2c8fec9fc2457f0ec557521a8036894dd4ebdc62c2a7ac06107bb22e0a893cf",
+    "verifier": "36a2fd40bde981767d77f393f5bf997540de4a5026de8c4cb40ad9b46686f4a6"
+  }
+}

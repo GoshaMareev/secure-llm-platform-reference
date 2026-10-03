@@ -24,6 +24,8 @@ def _append_json(path: Path, event: dict[str, Any]) -> None:
         descriptor = os.open(path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
         with os.fdopen(descriptor, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +65,7 @@ class AuditWriter:
         source_ids: list[str],
         refused: bool,
         policy_verdicts: tuple[str, ...] = (),
+        corpus: dict[str, str] | None = None,
     ) -> None:
         event: dict[str, Any] = {
             "schema_version": 1,
@@ -76,6 +79,8 @@ class AuditWriter:
             "refused": refused,
             "policy_verdicts": list(policy_verdicts),
         }
+        if corpus is not None:
+            event["corpus"] = {key: corpus[key] for key in ("corpus_id", "corpus_version", "manifest_sha256")}
         if self._include_prompt:
             event["prompt"] = question
         _append_json(self._path, event)

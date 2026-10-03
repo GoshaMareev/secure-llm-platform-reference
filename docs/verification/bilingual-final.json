@@ -1,0 +1,75 @@
+{
+  "checks": [
+    {
+      "check": "pii-en",
+      "redacted_kinds": [
+        "email",
+        "person"
+      ],
+      "passed": true
+    },
+    {
+      "check": "pii-ru",
+      "redacted_kinds": [
+        "email",
+        "person"
+      ],
+      "passed": true
+    },
+    {
+      "check": "pii-mixed",
+      "redacted_kinds": [
+        "email",
+        "person"
+      ],
+      "passed": true
+    },
+    {
+      "check": "pii-ru-phone",
+      "redacted_kinds": [
+        "phone"
+      ],
+      "passed": true
+    },
+    {
+      "check": "ru-override",
+      "blocked": true,
+      "passed": true
+    },
+    {
+      "check": "ru-system",
+      "blocked": true,
+      "passed": true
+    },
+    {
+      "check": "ru-disable",
+      "blocked": true,
+      "passed": true
+    },
+    {
+      "check": "ru-benign",
+      "blocked": false,
+      "passed": true
+    },
+    {
+      "check": "en-benign",
+      "blocked": false,
+      "passed": true
+    },
+    {
+      "check": "ru-output-exfil",
+      "blocked": true,
+      "passed": true
+    },
+    {
+      "check": "ru-output-benign",
+      "blocked": false,
+      "passed": true
+    }
+  ],
+  "passed": 11,
+  "total": 11,
+  "runtime_commit": "a62acc4ebe24448db72b4eaa60f4f1e5a03c5a88",
+  "harness_commit": "5ddb27030eaa0ebd904f1b007dec0742227c62d8",
+  "configuration": "Mandatory EN analyzer plus RU analyzer for Cyrillic, merged spans; no caller language switch"
+}

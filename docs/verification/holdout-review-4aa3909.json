@@ -1,0 +1,420 @@
+{
+  "reviewer": "Codex source-based manual inspection, not an independent human review",
+  "source_commit": "4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e",
+  "manifest_sha256": "3db86a97a0d539ac8d71457debe5ab0d463d29fcf36ee1e9261f53acd41a1873",
+  "suite_sha256": "881de857d41ce783164e0e3c3f21b467ff2faf21a47793855721a85b4ed63bda",
+  "reviewed": 32,
+  "automated_outcomes_unchanged": true,
+  "limitations": [
+    "All 32 answers read against unchanged authorized source documents and fixed facts. No tuning based on holdout answers or threshold edits.",
+    "Language fidelity is outside the frozen automated gate: 7/16 Russian holdout answers are English.",
+    "expanded-06-ru has correct facts but an unsupported qualification involving a redaction placeholder.",
+    "expanded-36-ru uses a composite citation format not parsed by the numeric citation mapper. Its refusal is valid, but its citation presentation needs separate improvement."
+  ],
+  "cases": [
+    {
+      "id": "expanded-03-en",
+      "language": "en",
+      "source_ids": [
+        "access-control"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-03-ru",
+      "language": "ru",
+      "source_ids": [
+        "access-control"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-06-en",
+      "language": "en",
+      "source_ids": [
+        "access-control"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-06-ru",
+      "language": "ru",
+      "source_ids": [
+        "access-control"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "partial",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained. English response to a Russian question. Unsupported placeholder-specific preface before correct general policy.",
+      "output_language_matches": false
+    },
+    {
+      "id": "expanded-09-en",
+      "language": "en",
+      "source_ids": [
+        "incident-response"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-09-ru",
+      "language": "ru",
+      "source_ids": [
+        "incident-response"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": false,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained. Faithful paraphrase missed by fixed fact alternatives; automatic failure remains.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-12-en",
+      "language": "en",
+      "source_ids": [
+        "incident-response"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-12-ru",
+      "language": "ru",
+      "source_ids": [
+        "incident-response"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained. English response to a Russian question.",
+      "output_language_matches": false
+    },
+    {
+      "id": "expanded-15-en",
+      "language": "en",
+      "source_ids": [
+        "incident-response"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-15-ru",
+      "language": "ru",
+      "source_ids": [
+        "incident-response"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-18-en",
+      "language": "en",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-18-ru",
+      "language": "ru",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": false,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained. Faithful paraphrase missed by fixed fact alternatives; automatic failure remains.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-21-en",
+      "language": "en",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-21-ru",
+      "language": "ru",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-24-en",
+      "language": "en",
+      "source_ids": [
+        "incident-response"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-24-ru",
+      "language": "ru",
+      "source_ids": [
+        "incident-response"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained. English response to a Russian question.",
+      "output_language_matches": false
+    },
+    {
+      "id": "expanded-27-en",
+      "language": "en",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-27-ru",
+      "language": "ru",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-30-en",
+      "language": "en",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-30-ru",
+      "language": "ru",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-33-en",
+      "language": "en",
+      "source_ids": [],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-33-ru",
+      "language": "ru",
+      "source_ids": [],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained. English response to a Russian question. Unnecessary placeholder qualification in valid refusal.",
+      "output_language_matches": false
+    },
+    {
+      "id": "expanded-36-en",
+      "language": "en",
+      "source_ids": [],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-36-ru",
+      "language": "ru",
+      "source_ids": [],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained. English response to a Russian question. Composite citation syntax not mapped by evaluator; not counted as factual citation proof.",
+      "output_language_matches": false
+    },
+    {
+      "id": "expanded-39-en",
+      "language": "en",
+      "source_ids": [],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-39-ru",
+      "language": "ru",
+      "source_ids": [],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained. English response to a Russian question.",
+      "output_language_matches": false
+    },
+    {
+      "id": "expanded-42-en",
+      "language": "en",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-42-ru",
+      "language": "ru",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained. English response to a Russian question.",
+      "output_language_matches": false
+    },
+    {
+      "id": "expanded-45-en",
+      "language": "en",
+      "source_ids": [
+        "access-control"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-45-ru",
+      "language": "ru",
+      "source_ids": [
+        "access-control"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-48-en",
+      "language": "en",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    },
+    {
+      "id": "expanded-48-ru",
+      "language": "ru",
+      "source_ids": [
+        "model-usage"
+      ],
+      "facts_supported": true,
+      "citation_scope_valid": true,
+      "overall_source_faithfulness": "supported",
+      "automated_pass": true,
+      "note": "Expected facts/refusal agree with authorized source; automated outcomes are retained.",
+      "output_language_matches": true
+    }
+  ]
+}

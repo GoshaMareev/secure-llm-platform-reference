@@ -1,0 +1,23 @@
+model_list:
+  - model_name: reference-chat
+    litellm_params: {model: openai/verification-chat, api_base: 'http://test-model:8080/v1', api_key: verification-not-secret, max_tokens: 1024}
+  - model_name: reference-vision
+    litellm_params: {model: openai/verification-vision, api_base: 'http://test-model:8080/v1', api_key: verification-not-secret, max_tokens: 1024}
+  - model_name: reference-multimodal
+    litellm_params: {model: openai/verification-multimodal, api_base: 'http://test-model:8080/v1', api_key: verification-not-secret, max_tokens: 1024}
+  - model_name: reference-embedding
+    litellm_params: {model: openai/verification-embedding, api_base: 'http://test-model:8080/v1', api_key: verification-not-secret}
+    model_info: {mode: embedding}
+  - model_name: reference-rerank
+    litellm_params: {model: cohere/verification-rerank, api_base: 'http://test-model:8080/v1/rerank', api_key: verification-not-secret}
+    model_info: {mode: rerank}
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  disable_spend_logs: true
+  allow_client_side_credentials: false
+litellm_settings:
+  callbacks: [reference_gateway.policy]
+  drop_params: true
+  request_timeout: 45
+  num_retries: 0
+  set_verbose: false

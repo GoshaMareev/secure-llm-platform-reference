@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+scrape_configs:
+  - job_name: native-gateway
+    metrics_path: /reference/metrics
+    static_configs:
+      - targets: ["litellm:4000"]
+  - job_name: native-webui
+    metrics_path: /reference/metrics
+    static_configs:
+      - targets: ["open-webui:8080"]

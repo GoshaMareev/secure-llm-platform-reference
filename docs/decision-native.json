@@ -1,0 +1,34 @@
+{
+  "mode": "shadow",
+  "checks": [
+    {
+      "check": "engineer completion after forged client state",
+      "passed": true
+    },
+    {
+      "check": "reader completion after forged client state",
+      "passed": true
+    },
+    {
+      "check": "two independent requests observed",
+      "passed": true
+    },
+    {
+      "check": "input_context checked for both users",
+      "passed": true
+    },
+    {
+      "check": "output checked for both users",
+      "passed": true
+    },
+    {
+      "check": "server policy, model and corpus provenance",
+      "passed": true
+    },
+    {
+      "check": "telemetry has only permitted fields",
+      "passed": true
+    }
+  ],
+  "passed": true
+}
