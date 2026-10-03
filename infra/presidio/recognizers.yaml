@@ -1,0 +1,24 @@
+supported_languages: [en]
+global_regex_flags: 26
+recognizers:
+  - name: CreditCardRecognizer
+    type: predefined
+  - name: EmailRecognizer
+    type: predefined
+  - name: PhoneRecognizer
+    type: predefined
+  - name: IbanRecognizer
+    type: predefined
+  - name: IpRecognizer
+    type: predefined
+  - name: UsSsnRecognizer
+    type: predefined
+  # Corporate addresses do not have to appear in the public suffix list.
+  - name: EnterpriseEmailRecognizer
+    type: custom
+    supported_language: en
+    supported_entity: EMAIL_ADDRESS
+    patterns:
+      - name: enterprise_email
+        regex: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
+        score: 0.85

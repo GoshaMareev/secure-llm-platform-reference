@@ -1,0 +1,252 @@
+"""Mandatory LiteLLM policy callback; no retrieval and no prompt logging."""
+
+import asyncio
+import hashlib
+import hmac
+import json
+import os
+import time
+import uuid
+from pathlib import Path
+
+import jwt
+from fastapi import HTTPException
+from litellm.integrations.custom_logger import CustomLogger
+from secure_rag.guardrails import Guardrails, PiiServiceError
+from secure_rag.presidio_pii import PresidioHttpRedactor
+
+
+class ReferencePolicy(CustomLogger):
+    enforces_request_content = True
+
+    def __init__(self):
+        super().__init__(turn_off_message_logging=True)
+        self.pii = PresidioHttpRedactor()
+        self.guardrails = Guardrails(pii=self.pii)
+
+    def record(self, data, verdict, outcome):
+        metadata = data.setdefault("metadata", {})
+        request_id = metadata.setdefault("reference_request_id", str(uuid.uuid4()))
+        common = {"timestamp": time.time(), "request_id": request_id, "outcome": outcome, "verdict": verdict}
+        if metadata.get("reference_blocked_role"):
+            common["blocked_role"] = metadata["reference_blocked_role"]
+        records = (
+            ("runtime", {**common, "event": "model_policy"}),
+            (
+                "audit",
+                {
+                    **common,
+                    "event": "model_access",
+                    "actor_hash": metadata.get("reference_actor_hash", "unknown"),
+                    "model_alias": data.get("model", "unknown"),
+                },
+            ),
+        )
+        for channel, record in records:
+            path = Path(f"/var/log/reference/{channel}/{channel}.jsonl")
+            # One append syscall per record; no raw text, emails, headers or tokens.
+            fd = os.open(path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+            try:
+                os.write(fd, (json.dumps(record) + "\n").encode())
+            finally:
+                os.close(fd)
+
+    def deny(self, data, verdict):
+        self.record(data, verdict, "blocked")
+        raise HTTPException(
+            400,
+            detail={
+                "message": "Blocked by reference policy",
+                "verdict": verdict,
+                "request_id": data["metadata"]["reference_request_id"],
+            },
+        )
+
+    async def async_pre_call_hook(self, user_api_key_dict, cache, data, call_type):
+        # Overwrite caller-supplied audit values. Identity comes only from the
+        # signed server header, never from metadata or plain user-info headers.
+        data.setdefault("metadata", {})["reference_request_id"] = str(uuid.uuid4())
+        data["metadata"].pop("reference_actor_hash", None)
+        data["metadata"].pop("reference_blocked_role", None)
+        data["metadata"].pop("reference_context_quarantined", None)
+        data["metadata"]["reference_model_alias"] = data.get("model", "unknown")
+        if data.get("model") not in {
+            "reference-chat",
+            "reference-vision",
+            "reference-multimodal",
+            "reference-embedding",
+            "reference-rerank",
+        }:
+            self.deny(data, "model_alias_not_allowed")
+        if any(key in data for key in ("api_base", "api_key", "base_url", "custom_llm_provider")):
+            self.deny(data, "provider_override_blocked")
+        # LiteLLM strips client-supplied secret_fields before attaching this
+        # transport-only mapping. Rerank exposes redacted logging headers in
+        # proxy_server_request; authentication must use the raw transport map.
+        transport = data.get("secret_fields", {}).get("raw_headers")
+        headers = {
+            k.lower(): v
+            for k, v in (transport or data.get("proxy_server_request", {}).get("headers", {})).items()
+        }
+        token = headers.get("x-openwebui-user-jwt", "")
+        try:
+            claims = jwt.decode(
+                token,
+                os.environ["REFERENCE_IDENTITY_JWT_SECRET"],
+                algorithms=["HS256"],
+                issuer="open-webui",
+                options={"require": ["sub", "iss", "iat", "exp"]},
+            )
+            if claims.get("role") not in {"user", "admin"}:
+                raise ValueError("Unapproved role")
+            actor = hmac.new(
+                os.environ["REFERENCE_AUDIT_SALT"].encode(), claims["sub"].encode(), hashlib.sha256
+            ).hexdigest()[:24]
+            data["metadata"]["reference_actor_hash"] = actor
+        except (jwt.PyJWTError, KeyError, ValueError, TypeError, AttributeError):
+            if not token and call_type in {"embedding", "embeddings", "aembedding"}:
+                # Open WebUI embeds Knowledge names/descriptions in a background
+                # job without a user. The internal master key authenticates this
+                # operation; it never grants chat or document access.
+                claims = {"sub": "native-rag-service"}
+                data["metadata"]["reference_actor_hash"] = "native-rag-service"
+            else:
+                self.deny(data, "signed_identity_required")
+        context_token = data.pop("reference_context_token", None)
+        if context_token:
+            try:
+                context = jwt.decode(
+                    context_token,
+                    os.environ["REFERENCE_IDENTITY_JWT_SECRET"],
+                    algorithms=["HS256"],
+                    issuer="reference-rag-policy",
+                    options={"require": ["sub", "request_id", "iss", "iat", "exp"]},
+                )
+                if context["sub"] != claims["sub"]:
+                    raise ValueError("Identity mismatch")
+                data["metadata"]["reference_request_id"] = str(uuid.UUID(context["request_id"]))
+                data["metadata"]["reference_context_quarantined"] = bool(context.get("quarantined"))
+            except (jwt.PyJWTError, KeyError, ValueError, TypeError):
+                self.deny(data, "invalid_rag_policy_context")
+        if call_type in {"completion", "acompletion"}:
+            if not context_token:
+                self.deny(data, "rag_policy_context_required")
+            if data.get("tools") or data.get("functions"):
+                self.deny(data, "unsupported_tools")
+            if data.get("audio") or data.get("modalities", ["text"]) != ["text"]:
+                self.deny(data, "unsupported_media_output")
+            data["max_tokens"] = min(int(data.get("max_tokens") or 1024), 1024)
+            # Buffer the complete answer so output checks finish before any
+            # token reaches the browser. Request filters enforce this too.
+            data["stream"] = False
+            data.pop("stream_options", None)
+            for message in data.get("messages", []):
+                content = message.get("content", "")
+                parts = [{"text": content}] if isinstance(content, str) else content
+                for part in parts or []:
+                    if part.get("type", "text") != "text":
+                        continue
+                    decision = await asyncio.to_thread(self.guardrails.check_input, part.get("text", ""))
+                    if decision.blocked:
+                        data["metadata"]["reference_blocked_role"] = message.get("role", "unknown")
+                        self.deny(data, decision.verdicts[0])
+                    part["text"] = decision.text
+                if isinstance(content, str):
+                    message["content"] = parts[0]["text"]
+        elif call_type in {"embedding", "embeddings", "aembedding", "rerank", "arerank"}:
+            # Native RAG ingestion, query embedding and reranking all cross the
+            # same boundary. Sanitize text before sending it to the provider.
+            try:
+                for field in ("input", "query", "documents"):
+                    if field not in data:
+                        continue
+                    value = data[field]
+                    if isinstance(value, str):
+                        data[field] = (await asyncio.to_thread(self.pii.redact, value))[0]
+                    elif isinstance(value, list) and all(isinstance(v, str) for v in value):
+                        data[field] = [(await asyncio.to_thread(self.pii.redact, v))[0] for v in value]
+                    else:
+                        self.deny(data, "unsupported_rag_input")
+            except PiiServiceError:
+                self.deny(data, "pii_check_unavailable_blocked")
+        else:
+            self.deny(data, "unsupported_model_operation")
+        return data
+
+    async def async_post_call_success_hook(self, data, user_api_key_dict, response):
+        system_prompt = " ".join(
+            m["content"]
+            for m in data.get("messages", [])
+            if m.get("role") == "system" and isinstance(m.get("content"), str)
+        )
+        output_policy = (
+            Guardrails(pii=self.pii, system_prompt=system_prompt) if system_prompt else self.guardrails
+        )
+        for choice in getattr(response, "choices", []):
+            message = getattr(choice, "message", None)
+            if message:
+                if getattr(message, "tool_calls", None) or getattr(message, "function_call", None):
+                    self.deny(data, "unsupported_tool_output")
+                if getattr(message, "audio", None) or getattr(message, "images", None):
+                    self.deny(data, "unsupported_media_output")
+                # Reasoning payloads can contain unscreened text. This demo
+                # exposes only the checked final answer.
+                for field in (
+                    "reasoning_content",
+                    "reasoning",
+                    "reasoning_details",
+                    "annotations",
+                    "citations",
+                ):
+                    if hasattr(message, field):
+                        setattr(message, field, None)
+                if message.content:
+                    decision = await asyncio.to_thread(output_policy.check_output, message.content)
+                    if decision.blocked:
+                        self.deny(data, decision.verdicts[0])
+                    message.content = decision.text
+        verdict = (
+            "context_injection_quarantined"
+            if data.get("metadata", {}).get("reference_context_quarantined")
+            else "model_response_checked"
+        )
+        self.record(data, verdict, "allowed")
+        return response
+
+    async def async_post_call_failure_hook(
+        self, request_data, original_exception, user_api_key_dict, traceback_str=None
+    ):
+        # Provider errors can contain input text or internal details. Return a
+        # stable error and retain only a verdict in the two event streams.
+        if (
+            isinstance(original_exception, HTTPException)
+            and isinstance(original_exception.detail, dict)
+            and original_exception.detail.get("verdict")
+        ):
+            return original_exception
+        self.record(request_data, "model_request_failed", "error")
+        return HTTPException(
+            502,
+            detail={
+                "message": "Model request failed",
+                "request_id": request_data["metadata"]["reference_request_id"],
+            },
+        )
+
+    async def async_post_call_response_headers_hook(self, data, user_api_key_dict, response, **kwargs):
+        return {"X-Request-ID": data.get("metadata", {}).get("reference_request_id", "")}
+
+    async def async_log_success_event(self, kwargs, response_obj, start_time, end_time):
+        # The pinned rerank endpoint omits the proxy post-success hook. Its
+        # standard success callback still provides the server-owned metadata.
+        if "rerank" in str(kwargs.get("call_type", "")):
+            metadata = kwargs.get("litellm_params", {}).get("metadata", {})
+            if metadata.get("reference_actor_hash") and metadata.get("reference_request_id"):
+                self.record(
+                    {"model": metadata.get("reference_model_alias"), "metadata": metadata},
+                    "rerank_response_received",
+                    "allowed",
+                )
+
+
+policy = ReferencePolicy()

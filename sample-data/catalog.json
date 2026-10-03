@@ -1,0 +1,61 @@
+{
+  "synthetic": true,
+  "organization": "Northstar Demo Organization",
+  "documents": [
+    {
+      "id": "access-control",
+      "path": "documents/access-control.md",
+      "title": "Production access policy",
+      "metadata": {
+        "doc_category": "policy",
+        "system": "platform",
+        "audience": "engineers",
+        "topic": "access"
+      }
+    },
+    {
+      "id": "incident-response",
+      "path": "documents/incident-response.md",
+      "title": "AI service incident response",
+      "metadata": {
+        "doc_category": "runbook",
+        "system": "platform",
+        "audience": "engineers",
+        "topic": "incidents"
+      }
+    },
+    {
+      "id": "model-usage",
+      "path": "documents/model-usage.md",
+      "title": "Approved model usage",
+      "metadata": {
+        "doc_category": "policy",
+        "system": "ai",
+        "audience": "all",
+        "topic": "models"
+      }
+    },
+    {
+      "id": "vendor-integration-notes",
+      "path": "documents/vendor-integration-notes.md",
+      "title": "Third-party vendor integration notes",
+      "metadata": {
+        "doc_category": "external",
+        "system": "ai",
+        "audience": "all",
+        "topic": "vendors"
+      }
+    },
+    {
+      "id": "on-call-roster",
+      "path": "documents/on-call-roster.md",
+      "title": "Platform on-call roster",
+      "metadata": {
+        "doc_category": "roster",
+        "system": "platform",
+        "audience": "engineers",
+        "topic": "on-call"
+      }
+    }
+  ]
+}

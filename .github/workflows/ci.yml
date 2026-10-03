@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "portfolio/**", "codex/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        run: python -m pip install --require-hashes --requirement requirements.lock
+
+      - name: Check Python code
+        run: |
+          python -m pip install ruff==0.16.6
+          python -m ruff check apps ingestion evals tests scripts gateway infra/full-stack-entrypoint.py
+
+      - name: Check browser workspace JavaScript
+        run: node --check apps/rag-assistant/secure_rag/web/workspace.js
+
+      - name: Run offline tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build synthetic index and run evaluations
+        run: |
+          python -m ingestion.build_index --source sample-data --output .local/index.json
+          PYTHONPATH=".:apps/rag-assistant" python evals/run.py --index .local/index.json --cases evals/cases.jsonl --compare --quiet --report .local/evaluation-report.md
+          python scripts/walkthrough.py --report .local/walkthrough-report.md
+
+      - name: Check publication safety
+        run: python scripts/pre_publication_check.py
+
+      - name: Validate Compose model
+        run: docker compose -f infra/docker-compose.yml config --quiet
+
+      - name: Validate Google override and pinned OAuth2 Proxy
+        run: python scripts/verify_google_sso_config.py
+
+      - name: Validate native full-stack boundaries without credentials
+        run: python scripts/verify_full_stack_config.py
+
+      - name: Upload offline evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: reference-offline-evidence
+          path: |
+            .local/evaluation-report.md
+            .local/walkthrough-report.md
+
+  native-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Verify native policy in pinned images without network or provider keys
+        run: python3 scripts/test_full_stack_boundaries.py
+
+  presidio:
+    # Same tests and evaluation against the real Presidio containers that the
+    # Compose stack runs for the RAG API and the LiteLLM gateway.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PRESIDIO_ANALYZER_URL: http://127.0.0.1:5002
+      PRESIDIO_ANONYMIZER_URL: http://127.0.0.1:5001
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependencies
+        run: python -m pip install --require-hashes --requirement requirements.lock
+
+      - name: Start pinned Presidio with the shared enterprise recognizer
+        run: docker compose -f infra/docker-compose.yml up -d --wait presidio-analyzer presidio-anonymizer
+
+      - name: Run tests including live Presidio checks
+        env:
+          PRESIDIO_INTEGRATION: "1"
+        run: python -m unittest discover -s tests -v
+
+      - name: Smoke-test Presidio redaction
+        run: python scripts/smoke_presidio.py
+
+      - name: Run evaluations with Presidio
+        run: |
+          python -m ingestion.build_index --source sample-data --output .local/index.json
+          PYTHONPATH=".:apps/rag-assistant" python evals/run.py --index .local/index.json \
+            --cases evals/cases.jsonl --pii-backend presidio --compare --report evals/report-presidio.md
+
+      - name: Upload Presidio evaluation report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: eval-report-presidio
+          path: evals/report-presidio.md
+
+      - name: Generate ephemeral gateway key
+        run: python -c "import secrets; print('LITELLM_MASTER_KEY=sk-' + secrets.token_hex(24))" >> "$GITHUB_ENV"
+
+      - name: Start gateway with synthetic upstream
+        env:
+          LITELLM_UPSTREAM_BASE_URL: http://test-model:8080/v1
+          LITELLM_UPSTREAM_MODEL: openai/synthetic-reference-model
+        run: docker compose -f infra/docker-compose.yml --profile gateway --profile verification up -d --wait test-model litellm
+
+      - name: Verify automatic gateway policy and RAG completion route
+        run: python scripts/verify_gateway.py
+
+      - name: Start container API and operational delivery
+        env:
+          RAG_GATEWAY_MODE: openai-compatible
+          LITELLM_UPSTREAM_BASE_URL: http://test-model:8080/v1
+          LITELLM_UPSTREAM_MODEL: openai/synthetic-reference-model
+        run: docker compose -f infra/docker-compose.yml --profile gateway --profile verification up -d --build --wait rag-assistant loki fluent-bit
+
+      - name: Verify container log delivery and audit separation
+        run: python scripts/verify_telemetry.py
+
+      - name: Stop verification containers
+        if: always()
+        run: docker compose -f infra/docker-compose.yml --profile gateway --profile verification down
