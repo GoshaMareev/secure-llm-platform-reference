@@ -1,4 +1,4 @@
-"""Personal-data redaction through Presidio Analyzer and Anonymizer services (English).
+"""Personal-data redaction through Presidio Analyzer and Anonymizer services (English and Russian).
 
 Presidio runs as two containers shared by every consumer on the platform: this
 service calls them over HTTP, and the LiteLLM gateway calls the same pair for
@@ -13,13 +13,17 @@ which a regex alone cannot do.
 from __future__ import annotations
 
 import json
+import math
 import os
+import re
+import time
 from typing import Any
 from urllib.error import URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .guardrails import PiiServiceError, redact_pii
+from .telemetry import MODEL_ALIAS, STAGE_SECONDS
 
 # Entity types this deployment treats as personal data, mapped to the kind used
 # in placeholders and verdicts. DATE_TIME, LOCATION and NRP are deliberately
@@ -46,6 +50,11 @@ def _validated_base(url: str, name: str) -> str:
     return url.rstrip("/")
 
 
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class PresidioHttpRedactor:
     def __init__(
         self,
@@ -65,6 +74,7 @@ class PresidioHttpRedactor:
         )
         self._threshold = score_threshold
         self._timeout = timeout_seconds
+        self._opener = build_opener(NoRedirect())
         self._operators = {
             entity: {"type": "replace", "new_value": f"[REDACTED_{kind.upper()}]"}
             for entity, kind in ENTITY_KINDS.items()
@@ -77,41 +87,70 @@ class PresidioHttpRedactor:
             headers={"content-type": "application/json"},
             method="POST",
         )
+        start = time.monotonic()
+        verdict = "unavailable"
         try:
-            with urlopen(request, timeout=self._timeout) as response:  # noqa: S310
+            with self._opener.open(request, timeout=self._timeout) as response:
                 body = response.read(MAX_RESPONSE_BYTES + 1)
-        except (URLError, TimeoutError, OSError) as error:
-            raise PiiServiceError(f"Presidio request failed: {url}") from error
-        if len(body) > MAX_RESPONSE_BYTES:
-            raise PiiServiceError("Presidio response exceeds the size limit")
-        try:
-            return json.loads(body)
-        except ValueError as error:
-            raise PiiServiceError("Presidio returned invalid JSON") from error
+            if len(body) > MAX_RESPONSE_BYTES:
+                raise PiiServiceError("Presidio response exceeds the size limit")
+            result = json.loads(body)
+            verdict = "completed"
+            return result
+        except (URLError, TimeoutError, OSError, ValueError) as error:
+            raise PiiServiceError("Presidio request unavailable") from error
+        finally:
+            STAGE_SECONDS.labels(stage="pii", model_alias=MODEL_ALIAS.get(), verdict=verdict).observe(
+                time.monotonic() - start
+            )
 
     def redact(self, text: str) -> tuple[str, tuple[str, ...]]:
-        findings = self._post(
-            f"{self._analyzer}/analyze",
-            {
-                "text": text,
-                "language": "en",
-                "entities": list(ENTITY_KINDS),
-                "score_threshold": self._threshold,
-            },
-        )
-        if not isinstance(findings, list):
-            raise PiiServiceError("Presidio analyzer returned an unexpected payload")
+        findings = []
+        # English validated recognizers run for every input; Russian NER is
+        # additionally mandatory for Cyrillic and mixed-language inputs.
+        languages = ("en", "ru") if re.search(r"[А-Яа-яЁё]", text) else ("en",)
         try:
-            findings = [item for item in findings if item.get("entity_type") in ENTITY_KINDS]
-            analyzer_results = [
-                {
-                    "start": int(item["start"]),
-                    "end": int(item["end"]),
-                    "score": float(item["score"]),
-                    "entity_type": item["entity_type"],
-                }
-                for item in findings
-            ]
+            for language in languages:
+                detected = self._post(
+                    f"{self._analyzer}/analyze",
+                    {
+                        "text": text,
+                        "language": language,
+                        "entities": list(ENTITY_KINDS),
+                        "score_threshold": self._threshold,
+                    },
+                )
+                if not isinstance(detected, list):
+                    raise PiiServiceError("Presidio analyzer returned an unexpected payload")
+                for item in detected:
+                    if item.get("entity_type") not in ENTITY_KINDS:
+                        continue
+                    start, end, score = int(item["start"]), int(item["end"]), float(item["score"])
+                    if not (0 <= start < end <= len(text)) or not math.isfinite(score) or not 0 <= score <= 1:
+                        raise ValueError("Invalid span")
+                    # English NER is not evidence for an entirely Cyrillic name.
+                    # Russian NER handles that script; retain mixed/Latin EN spans.
+                    if (
+                        language == "en"
+                        and item["entity_type"] == "PERSON"
+                        and re.search(r"[А-Яа-яЁё]", text[start:end])
+                        and not re.search(r"[A-Za-z]", text[start:end])
+                    ):
+                        continue
+                    findings.append(
+                        {"start": start, "end": end, "score": score, "entity_type": item["entity_type"]}
+                    )
+            # Union overlapping spans before masking; never allow one language
+            # to narrow the sensitive span found by the other language.
+            analyzer_results = []
+            for finding in sorted(findings, key=lambda x: (x["start"], x["end"])):
+                if analyzer_results and finding["start"] < analyzer_results[-1]["end"]:
+                    previous = analyzer_results[-1]
+                    previous["end"] = max(previous["end"], finding["end"])
+                    if finding["score"] > previous["score"]:
+                        previous["entity_type"], previous["score"] = finding["entity_type"], finding["score"]
+                else:
+                    analyzer_results.append(dict(finding))
         except (AttributeError, KeyError, TypeError, ValueError) as error:
             raise PiiServiceError("Presidio analyzer returned malformed findings") from error
         if not findings:

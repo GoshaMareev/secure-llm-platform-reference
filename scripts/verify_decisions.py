@@ -10,7 +10,7 @@ from verify import chat, signin
 
 
 def verify():
-    runtime = Path("/var/log/reference/runtime/runtime.jsonl")
+    runtime = Path("/var/log/reference/runtime/gateway.runtime.jsonl")
     start = runtime.stat().st_size
     corpus = json.loads(MANIFEST.read_text())["corpus"]
     checks = []

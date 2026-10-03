@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .authorization import PUBLIC_SCOPE, RetrievalScope
-from .gateway import ModelGateway
+from .gateway import DemoGateway, ExtractiveAnswer, ModelGateway
 from .guardrails import REDACTION_PLACEHOLDER, SCOPE_ACCESS_DENIED, Guardrails
 from .retrieval import Retriever, SearchResult
 
@@ -86,7 +86,7 @@ class RAGService:
             results = screened.kept
 
         confidence = self._retriever.confidence(results)
-        if confidence < self._min_confidence:
+        if not isinstance(self._gateway, DemoGateway) and confidence < self._min_confidence:
             # Weak or empty retrieval is not evidence. Do not disclose document
             # identifiers/titles for a refused answer, since that would expose
             # the corpus inventory even when the question is out of scope.
@@ -99,6 +99,9 @@ class RAGService:
                 return Answer(POLICY_REFUSAL, confidence, True, (), tuple(verdicts), blocked=True)
             results = redacted.kept
         text = self._gateway.answer(question, results)
+        used_sources = getattr(text, "source_ids", None)
+        if isinstance(text, ExtractiveAnswer) and not used_sources:
+            return Answer(REFUSAL, confidence, True, (), tuple(verdicts))
         if guard is not None:
             output = guard.check_output(text)
             verdicts.extend(output.verdicts)
@@ -106,4 +109,10 @@ class RAGService:
                 return Answer(POLICY_REFUSAL, confidence, True, (), tuple(verdicts), blocked=True)
             text = output.text
 
-        return Answer(text, confidence, False, _citations(results), tuple(verdicts))
+        return Answer(
+            str(text),
+            confidence,
+            False,
+            _citations([r for r in results if used_sources is None or r.chunk.document_id in used_sources]),
+            tuple(verdicts),
+        )

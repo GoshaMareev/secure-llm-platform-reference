@@ -3,15 +3,14 @@
 import asyncio
 import hashlib
 import hmac
-import json
 import os
 import time
 import uuid
-from pathlib import Path
 
 import jwt
 from fastapi import HTTPException
 from litellm.integrations.custom_logger import CustomLogger
+from secure_rag.async_work import run_blocking
 from secure_rag.decision_guardrails import (
     POLICY_SHA256,
     POLICY_VERSION,
@@ -29,7 +28,9 @@ from secure_rag.media_guardrails import (
     LocalMediaInspector,
     MediaRejected,
 )
+from secure_rag.native_audit import emit
 from secure_rag.presidio_pii import PresidioHttpRedactor
+from secure_rag.telemetry import AUDIT_ERRORS, MODEL_ALIAS, REQUEST_CONTEXT, STAGE_SECONDS
 
 
 class ReferencePolicy(CustomLogger):
@@ -63,18 +64,24 @@ class ReferencePolicy(CustomLogger):
             "manifest_sha256": metadata.get("reference_manifest_sha256"),
             **event,
         }
-        for channel in ("runtime", "audit"):
-            fd = os.open(
-                f"/var/log/reference/{channel}/{channel}.jsonl", os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600
-            )
-            try:
-                os.write(fd, (json.dumps(record) + "\n").encode())
-            finally:
-                os.close(fd)
+        try:
+            emit("gateway", "audit", record)
+        except OSError:
+            AUDIT_ERRORS.labels(component="gateway").inc()
+            raise HTTPException(
+                503,
+                detail={
+                    "code": "audit_unavailable",
+                    "request_id": metadata["reference_request_id"],
+                    "message": "Request unavailable",
+                },
+            ) from None
+        emit("gateway", "runtime", record)
 
     async def observe(self, data, stage, state):
         if self.decisions is None:
             return
+        start = time.monotonic()
         try:
             if state is None:
                 raise DecisionUnavailable("context_unavailable")
@@ -83,7 +90,7 @@ class ReferencePolicy(CustomLogger):
             if self._decision_slots.locked():
                 raise DecisionUnavailable("capacity_limit")
             async with self._decision_slots:
-                result = await asyncio.to_thread(self.decisions.evaluate, stage, state)
+                result = await run_blocking(self.decisions.evaluate, stage, state)
             event = result.event(stage)
         except DecisionUnavailable as error:
             event = {
@@ -94,6 +101,9 @@ class ReferencePolicy(CustomLogger):
                 "policy_sha256": POLICY_SHA256,
                 "would_block": None,
             }
+        STAGE_SECONDS.labels(stage="jev", model_alias=MODEL_ALIAS.get(), verdict=event["status"]).observe(
+            time.monotonic() - start
+        )
         self.record_decision(data, event)
 
     def record(self, data, verdict, outcome, *, media=None):
@@ -103,7 +113,11 @@ class ReferencePolicy(CustomLogger):
         if media is not None:
             common["media"] = media
         if metadata.get("reference_blocked_role"):
-            common["blocked_role"] = metadata["reference_blocked_role"]
+            common["blocked_role"] = (
+                metadata["reference_blocked_role"]
+                if metadata["reference_blocked_role"] in {"system", "user", "assistant"}
+                else "unknown"
+            )
         records = (
             ("runtime", {**common, "event": "model_policy"}),
             (
@@ -112,27 +126,46 @@ class ReferencePolicy(CustomLogger):
                     **common,
                     "event": "model_access",
                     "actor_hash": metadata.get("reference_actor_hash", "unknown"),
-                    "model_alias": data.get("model", "unknown"),
+                    "model_alias": data.get("model")
+                    if data.get("model")
+                    in {
+                        "reference-chat",
+                        "reference-vision",
+                        "reference-multimodal",
+                        "reference-embedding",
+                        "reference-rerank",
+                    }
+                    else "unknown",
                 },
             ),
         )
-        for channel, record in records:
-            path = Path(f"/var/log/reference/{channel}/{channel}.jsonl")
-            # One append syscall per record; no raw text, emails, headers or tokens.
-            fd = os.open(path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+        for channel, record in sorted(records, key=lambda pair: pair[0] != "audit"):
             try:
-                os.write(fd, (json.dumps(record) + "\n").encode())
-            finally:
-                os.close(fd)
+                emit("gateway", channel, record)
+            except OSError:
+                AUDIT_ERRORS.labels(component="gateway").inc()
+                if REQUEST_CONTEXT.get() is not None:
+                    REQUEST_CONTEXT.get()["error_code"] = "audit_unavailable"
+                raise HTTPException(
+                    503,
+                    detail={
+                        "message": "Request unavailable",
+                        "code": "audit_unavailable",
+                        "request_id": request_id,
+                    },
+                ) from None
 
-    def deny(self, data, verdict, *, media=None):
+    def deny(self, data, verdict, *, media=None, status_code=400):
+        if REQUEST_CONTEXT.get() is not None:
+            REQUEST_CONTEXT.get()["error_code"] = verdict
         self._decision_contexts.pop(data.get("metadata", {}).get("reference_request_id"), None)
-        self.record(data, verdict, "blocked", media=media)
+        self.record(data, verdict, "overloaded" if status_code == 429 else "blocked", media=media)
         raise HTTPException(
-            400,
+            status_code,
             detail={
                 "message": "Blocked by reference policy",
                 "verdict": verdict,
+                "code": verdict,
                 "request_id": data["metadata"]["reference_request_id"],
             },
         )
@@ -140,12 +173,15 @@ class ReferencePolicy(CustomLogger):
     async def async_pre_call_hook(self, user_api_key_dict, cache, data, call_type):
         # Overwrite caller-supplied audit values. Identity comes only from the
         # signed server header, never from metadata or plain user-info headers.
-        data.setdefault("metadata", {})["reference_request_id"] = str(uuid.uuid4())
+        data.setdefault("metadata", {})["reference_request_id"] = (REQUEST_CONTEXT.get() or {}).get(
+            "request_id"
+        ) or str(uuid.uuid4())
         data["metadata"].pop("reference_actor_hash", None)
         data["metadata"].pop("reference_blocked_role", None)
         data["metadata"].pop("reference_context_quarantined", None)
         data["metadata"].pop("reference_corpus_version", None)
         data["metadata"].pop("reference_manifest_sha256", None)
+        data["metadata"].pop("reference_upstream_started", None)
         data["metadata"]["reference_model_alias"] = data.get("model", "unknown")
         if data.get("model") not in {
             "reference-chat",
@@ -155,6 +191,7 @@ class ReferencePolicy(CustomLogger):
             "reference-rerank",
         }:
             self.deny(data, "model_alias_not_allowed")
+        MODEL_ALIAS.set(data["model"])
         if any(key in data for key in ("api_base", "api_key", "base_url", "custom_llm_provider")):
             self.deny(data, "provider_override_blocked")
         # LiteLLM strips client-supplied secret_fields before attaching this
@@ -208,6 +245,8 @@ class ReferencePolicy(CustomLogger):
                     if messages_digest(data.get("messages", [])) != context.get("messages_sha256"):
                         self.deny(data, "decision_messages_mismatch")
                 data["metadata"]["reference_request_id"] = str(uuid.UUID(context["request_id"]))
+                if REQUEST_CONTEXT.get() is not None:
+                    REQUEST_CONTEXT.get()["request_id"] = data["metadata"]["reference_request_id"]
                 data["metadata"]["reference_context_quarantined"] = bool(context.get("quarantined"))
                 data["metadata"]["reference_corpus_version"] = context.get("corpus_version")
                 data["metadata"]["reference_manifest_sha256"] = context.get("manifest_sha256")
@@ -241,6 +280,7 @@ class ReferencePolicy(CustomLogger):
             data["stream"] = False
             data.pop("stream_options", None)
             media_count = 0
+            cleaned_media_inputs = []
             for message in data.get("messages", []):
                 content = message.get("content", "")
                 parts = [{"text": content}] if isinstance(content, str) else content
@@ -252,10 +292,23 @@ class ReferencePolicy(CustomLogger):
                         if media_count > MAX_MEDIA_PARTS:
                             self.deny(data, "media_count_limit")
                         try:
-                            checked = await asyncio.to_thread(self.media.check, part)
+                            media_start = time.monotonic()
+                            checked = await run_blocking(self.media.check, part)
+                            STAGE_SECONDS.labels(
+                                stage="ocr" if checked.kind == "image" else "stt",
+                                model_alias=data["model"],
+                                verdict=checked.verdict,
+                            ).observe(time.monotonic() - media_start)
                         except MediaRejected as error:
-                            self.deny(data, str(error), media={"policy_version": MEDIA_POLICY_VERSION})
+                            self.deny(
+                                data,
+                                str(error),
+                                media={"policy_version": MEDIA_POLICY_VERSION},
+                                status_code=429 if str(error) == "media_capacity_exhausted" else 400,
+                            )
                         parts[index] = checked.part
+                        if checked.untrusted_text:
+                            cleaned_media_inputs.append(checked.untrusted_text)
                         self.record(
                             data,
                             checked.verdict,
@@ -268,7 +321,7 @@ class ReferencePolicy(CustomLogger):
                             },
                         )
                         continue
-                    decision = await asyncio.to_thread(self.guardrails.check_input, part.get("text", ""))
+                    decision = await run_blocking(self.guardrails.check_input, part.get("text", ""))
                     if decision.blocked:
                         data["metadata"]["reference_blocked_role"] = message.get("role", "unknown")
                         self.deny(data, decision.verdicts[0])
@@ -291,9 +344,10 @@ class ReferencePolicy(CustomLogger):
                     if decision_context is not None:
                         validate_state(decision_context)
                         decision_context = {
-                            "query": (await asyncio.to_thread(self.pii.redact, decision_context["query"]))[0],
+                            "query": (await run_blocking(self.pii.redact, decision_context["query"]))[0],
+                            "untrusted_inputs": cleaned_media_inputs,
                             "passages": [
-                                (await asyncio.to_thread(self.pii.redact, text))[0]
+                                (await run_blocking(self.pii.redact, text))[0]
                                 for text in decision_context["passages"]
                             ],
                         }
@@ -320,18 +374,35 @@ class ReferencePolicy(CustomLogger):
                         continue
                     value = data[field]
                     if isinstance(value, str):
-                        data[field] = (await asyncio.to_thread(self.pii.redact, value))[0]
+                        data[field] = (await run_blocking(self.pii.redact, value))[0]
                     elif isinstance(value, list) and all(isinstance(v, str) for v in value):
-                        data[field] = [(await asyncio.to_thread(self.pii.redact, v))[0] for v in value]
+                        data[field] = [(await run_blocking(self.pii.redact, v))[0] for v in value]
                     else:
                         self.deny(data, "unsupported_rag_input")
             except PiiServiceError:
                 self.deny(data, "pii_check_unavailable_blocked")
         else:
             self.deny(data, "unsupported_model_operation")
+        data["metadata"]["reference_upstream_started"] = time.monotonic()
         return data
 
+    def timing(self, data, verdict):
+        started = data.get("metadata", {}).pop("reference_upstream_started", None)
+        alias = data.get("metadata", {}).get("reference_model_alias", "unknown")
+        if started is not None:
+            stage = (
+                "retrieval_rerank"
+                if alias == "reference-rerank"
+                else "retrieval_embedding"
+                if alias == "reference-embedding"
+                else "upstream_inference"
+            )
+            STAGE_SECONDS.labels(stage=stage, model_alias=alias, verdict=verdict).observe(
+                time.monotonic() - started
+            )
+
     async def async_post_call_success_hook(self, data, user_api_key_dict, response):
+        self.timing(data, "completed")
         saved = self._decision_contexts.pop(data.get("metadata", {}).get("reference_request_id"), None)
         system_prompt = " ".join(
             m["content"]
@@ -360,7 +431,7 @@ class ReferencePolicy(CustomLogger):
                     if hasattr(message, field):
                         setattr(message, field, None)
                 if message.content:
-                    decision = await asyncio.to_thread(output_policy.check_output, message.content)
+                    decision = await run_blocking(output_policy.check_output, message.content)
                     if decision.blocked:
                         self.deny(data, decision.verdicts[0])
                     message.content = decision.text
@@ -378,13 +449,14 @@ class ReferencePolicy(CustomLogger):
     async def async_post_call_failure_hook(
         self, request_data, original_exception, user_api_key_dict, traceback_str=None
     ):
+        self.timing(request_data, "error")
         self._decision_contexts.pop(request_data.get("metadata", {}).get("reference_request_id"), None)
         # Provider errors can contain input text or internal details. Return a
         # stable error and retain only a verdict in the two event streams.
         if (
             isinstance(original_exception, HTTPException)
             and isinstance(original_exception.detail, dict)
-            and original_exception.detail.get("verdict")
+            and (original_exception.detail.get("verdict") or original_exception.detail.get("code"))
         ):
             return original_exception
         self.record(request_data, "model_request_failed", "error")
@@ -392,6 +464,7 @@ class ReferencePolicy(CustomLogger):
             502,
             detail={
                 "message": "Model request failed",
+                "code": "model_request_failed",
                 "request_id": request_data["metadata"]["reference_request_id"],
             },
         )
@@ -404,6 +477,7 @@ class ReferencePolicy(CustomLogger):
         # standard success callback still provides the server-owned metadata.
         if "rerank" in str(kwargs.get("call_type", "")):
             metadata = kwargs.get("litellm_params", {}).get("metadata", {})
+            self.timing({"metadata": metadata}, "completed")
             if metadata.get("reference_actor_hash") and metadata.get("reference_request_id"):
                 self.record(
                     {"model": metadata.get("reference_model_alias"), "metadata": metadata},

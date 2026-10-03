@@ -16,15 +16,17 @@ services:
     command: !override []
     user: "${FULL_STACK_UID:?Initialize full-stack secrets}:${FULL_STACK_GID:?Initialize full-stack secrets}"
     environment: !override
+      LITELLM_WORKER_STARTUP_HOOKS: reference_capacity:install
       PYTHONPATH: /reference:/reference/secure-rag
       HOME: /tmp
       OR_SITE_URL: https://github.com/GoshaMareev/secure-llm-platform-reference
       OR_APP_NAME: Secure LLM Platform Reference
-      REFERENCE_DECISION_MODE: ${REFERENCE_DECISION_MODE:-off}
+      REFERENCE_DECISION_MODE: ${REFERENCE_DECISION_MODE:-shadow}
       PRESIDIO_ANALYZER_URL: http://presidio-analyzer:3000
       PRESIDIO_ANONYMIZER_URL: http://presidio-anonymizer:3000
     ports: !override []
     volumes: !override
+      - ../gateway/reference_capacity.py:/reference/reference_capacity.py:ro
       - ./full-stack-entrypoint.py:/reference/entrypoint.py:ro
       - ../gateway/openrouter-config.yaml:/reference/litellm.yaml:ro
       - ../gateway/reference_gateway.py:/reference/reference_gateway.py:ro
@@ -191,6 +193,8 @@ services:
       PRESIDIO_ANONYMIZER_URL: http://presidio-anonymizer:3000
     secrets: [gateway-key, identity-jwt-secret, audit-salt, webui-secret, admin-password, identity-enrollment, postgres-password]
     volumes:
+      - ../gateway/reference_capacity.py:/reference/reference_capacity.py:ro
+      - ../gateway/reference_webui_app.py:/reference/reference_webui_app.py:ro
       - ./full-stack-entrypoint.py:/reference/entrypoint.py:ro
       - ../apps/rag-assistant:/reference/secure-rag:ro
       - ../ingestion:/reference/ingestion:ro

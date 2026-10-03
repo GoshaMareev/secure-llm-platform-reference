@@ -52,7 +52,7 @@ class AuthorizationApiTests(unittest.TestCase):
             self.assertNotIn("answer", op)
             self.assertNotIn("prompt", au)
             self.assertEqual(op["refused"], au["refused"])
-            self.assertEqual(answer["corpus_version"], "1.0.0")
+            self.assertEqual(answer["corpus_version"], "1.1.0")
             self.assertEqual(
                 au["corpus"], {key: answer[key] for key in ("corpus_id", "corpus_version", "manifest_sha256")}
             )

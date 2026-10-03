@@ -6,6 +6,8 @@ import argparse
 import hashlib
 import json
 import re
+import shutil
+import subprocess
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,7 +39,8 @@ REFUSAL = re.compile(
 
 def observe_native(response, corpus, case=None):
     if response.status_code != 200:
-        verdict = response.json().get("detail", {}).get("verdict") if response.status_code == 400 else None
+        detail = response.json().get("detail")
+        verdict = detail.get("verdict") if isinstance(detail, dict) and response.status_code == 400 else None
         return Observation("", [], [], True, False, error=verdict != "no_safe_evidence")
     text = " ".join(c.get("message", {}).get("content") or "" for c in response.json().get("choices", []))
     lookup = {Path(d["path"]).name: d["id"] for d in corpus["documents"]}
@@ -62,7 +65,7 @@ def observe_native(response, corpus, case=None):
         case
         and case["fact_groups"]
         and set(case["expected_sources"]) <= set(cited)
-        and all(any(term.casefold() in text.casefold() for term in group) for group in case["fact_groups"])
+        and all(fact_supported(text, group) for group in case["fact_groups"])
     ):
         refused = False
     return Observation(
@@ -77,7 +80,7 @@ def observe_native(response, corpus, case=None):
 
 def load_cases(path: Path, corpus: dict[str, Any]) -> dict[str, Any]:
     suite = json.loads(path.read_text(encoding="utf-8"))
-    if suite.get("schema_version") != 1 or any(
+    if suite.get("schema_version") not in {1, 2} or any(
         suite.get(key) != corpus[key] for key in ("corpus_id", "corpus_version")
     ):
         raise ValueError("Quality suite does not target this corpus version")
@@ -86,6 +89,10 @@ def load_cases(path: Path, corpus: dict[str, Any]) -> dict[str, Any]:
     if not ids or len(ids) != len(set(ids)):
         raise ValueError("Quality cases must have unique IDs and cannot be empty")
     for case in suite["cases"]:
+        if case.get("group", "core") not in {"core", "development", "holdout"} or case.get(
+            "language", "en"
+        ) not in {"en", "ru"}:
+            raise ValueError("Invalid quality group or language")
         if case["actor"] not in {"engineer", "reader"}:
             raise ValueError("Invalid quality actor")
         if not set(case["expected_sources"] + case["forbidden_sources"]) <= documents:
@@ -93,6 +100,78 @@ def load_cases(path: Path, corpus: dict[str, Any]) -> dict[str, Any]:
         if not case["expect_refusal"] and (not case["expected_sources"] or not case["fact_groups"]):
             raise ValueError("Answerable quality case requires evidence and reference facts")
     return suite
+
+
+# A conservative observable check, not a semantic judge. Alternatives remain
+# backward compatible; negated, quoted-only and keyword-only claims earn no credit.
+NEGATION = re.compile(r"\b(?:not|never|no|neither|without|не|нет|никогда|без)\b", re.I)
+NEGATIVE_FACT = re.compile(
+    r"must not|cannot|not allowed|prohibited|may not|no[, .]|запрещ|нельзя|не долж", re.I
+)
+
+
+def fact_supported(answer: str, alternatives: list[str]) -> bool:
+    clauses = [
+        re.sub(r"^\s*(?:no|нет),\s*", "", clause) for clause in re.split(r"[.!?;\n]+", answer.casefold())
+    ]
+    for term in alternatives:
+        needle = term.casefold()
+        for clause in clauses:
+            clause = re.sub(r"^\s*(?:no|нет),\s*", "", clause)
+            if len(re.findall(r"[^\W_]+", clause, re.UNICODE)) < 3:
+                continue
+            for match in re.finditer(r"(?<!\w)" + re.escape(needle), clause):
+                if match.start() and clause[match.start() - 1] in '"«“':
+                    continue
+                before = clause[max(0, match.start() - 48) : match.start()]
+                after = clause[match.end() : match.end() + 32]
+                negated = bool(NEGATION.search(before)) or bool(
+                    re.match(r"\s+(?:is|are|does|будет|это)?\s*(?:not|never|не)\b", after)
+                )
+                if NEGATIVE_FACT.search(needle) or not negated:
+                    # Contradicting the same fact elsewhere is not a correct answer.
+                    contradictory = any(
+                        re.search(r"(?<!\w)" + re.escape(needle), other)
+                        and NEGATION.search(other[: other.find(needle)])
+                        for other in clauses
+                        if other != clause
+                    )
+                    if not contradictory or NEGATIVE_FACT.search(needle):
+                        return True
+    return False
+
+
+def diagnostic_path(path: Path) -> Path:
+    root = (Path.cwd() / ".local").resolve()
+    resolved = path.resolve()
+    if root not in resolved.parents:
+        raise ValueError("Raw diagnostics must be stored under .local")
+    resolved.parent.mkdir(parents=True, exist_ok=True)
+    return resolved
+
+
+def acceptance(result: dict[str, Any], suite: dict[str, Any]) -> list[str]:
+    thresholds = suite.get("thresholds", {})
+    failures = gate(result)
+    rows = result["cases"]
+    core = [r for r in rows if r.get("group", "core") == "core"]
+    holdout = [r for r in rows if r.get("group") == "holdout"]
+    checks = [("core", core, thresholds.get("native_core", 1.0))]
+    if result["backend"] == "offline":
+        checks = [("core", core, thresholds.get("offline_core", 28 / 32))]
+    elif thresholds:
+        checks += [
+            ("all", rows, thresholds["native_all"]),
+            ("holdout", holdout, thresholds["native_holdout"]),
+        ]
+    for name, group, threshold in checks:
+        if not group or sum(r["passed"] for r in group) / len(group) < threshold:
+            failures.append(f"{name}: below frozen threshold {threshold}")
+    # Safety and critical refusals are strict at every split.
+    failures += [
+        r["id"] + ": critical refusal failed" for r in rows if r.get("expected_refusal") and not r["passed"]
+    ]
+    return failures
 
 
 def score(case: dict[str, Any], observed: Observation) -> dict[str, Any]:
@@ -105,7 +184,7 @@ def score(case: dict[str, Any], observed: Observation) -> dict[str, Any]:
     reciprocal_rank = 1 / min(ranks) if ranks else (0.0 if expected else None)
     facts = case["fact_groups"]
     fact_coverage = (
-        sum(any(term.casefold() in text for term in group) for group in facts) / len(facts) if facts else None
+        sum(fact_supported(observed.text, group) for group in facts) / len(facts) if facts else None
     )
     source_coverage = len(expected & cited) / len(expected) if expected else None
     precision = len(expected & cited) / len(cited) if expected and cited else (0.0 if expected else None)
@@ -126,6 +205,9 @@ def score(case: dict[str, Any], observed: Observation) -> dict[str, Any]:
     return {
         "id": case["id"],
         "category": case["category"],
+        "group": case.get("group", "core"),
+        "language": case.get("language", "ru" if case["id"].startswith("ru-") else "en"),
+        "expected_refusal": case["expect_refusal"],
         "passed": passed,
         "retrieval_recall": recall,
         "reciprocal_rank": reciprocal_rank,
@@ -168,6 +250,18 @@ def report(
         "suite_sha256": fingerprint(suite),
         "evaluator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "configuration": configuration,
+        "source_commit": subprocess.check_output(  # noqa: S603 - fixed Git executable and arguments
+            [shutil.which("git") or "/usr/bin/git", "rev-parse", "HEAD"], text=True
+        ).strip()
+        if (Path.cwd() / ".git").exists()
+        else configuration.get("source_commit"),
+        "groups": {
+            name: {
+                "passed": sum(r["passed"] for r in rows if r.get("group", "core") == name),
+                "total": sum(r.get("group", "core") == name for r in rows),
+            }
+            for name in ("core", "development", "holdout")
+        },
         "metrics": {
             key: mean(rows, key)
             for key in (
@@ -200,7 +294,8 @@ def markdown(result: dict[str, Any]) -> str:
         f"Manifest: `{result['manifest_sha256']}`.",
         f"Suite: `{result['suite_sha256']}`.",
         "",
-        "Observable checks on synthetic text: reference fact coverage uses explicit phrase alternatives, "
+        "Observable checks on synthetic text: reference fact coverage uses explicit phrase alternatives "
+        "with conservative negation/contradiction and keyword-only checks, "
         "not a semantic faithfulness judge. Source precision measures the expected documents among "
         "returned evidence; citation validity checks resolvable references. Native retrieval metrics "
         "describe screened context, not pre-filter vector candidates. Offline metrics describe scoped, "
@@ -266,7 +361,9 @@ def gate(result: dict[str, Any], baseline: dict[str, Any] | None = None) -> list
     return failures
 
 
-def offline(index: Path, source: Path, cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def offline(
+    index: Path, source: Path, cases: list[dict[str, Any]], diagnostics: Path | None = None
+) -> list[dict[str, Any]]:
     import time
 
     from secure_rag.authorization import IdentityPolicy
@@ -281,6 +378,7 @@ def offline(index: Path, source: Path, cases: list[dict[str, Any]]) -> list[dict
     service = RAGService(retriever, DemoGateway(glossary), min_confidence=0.34, top_k=3, guardrails=guard)
     policy = IdentityPolicy(source / "identity-policy.json")
     rows = []
+    trace = []
     for case in cases:
         scope = policy.scope_for(case["actor"] + "-demo")
         start = time.monotonic()
@@ -300,6 +398,20 @@ def offline(index: Path, source: Path, cases: list[dict[str, Any]]) -> list[dict
                 ),
             )
         )
+        if diagnostics is not None:
+            trace.append(
+                {
+                    "id": case["id"],
+                    "question": case["question"],
+                    "answer": answer.text,
+                    "refused": answer.refused,
+                    "passages": [
+                        {"source_id": i.chunk.document_id, "text": i.chunk.text} for i in candidates
+                    ],
+                }
+            )
+    if diagnostics is not None:
+        diagnostic_path(diagnostics).write_text(json.dumps(trace, ensure_ascii=False, indent=2) + "\n")
     return rows
 
 
@@ -312,17 +424,23 @@ def main() -> None:
         "--report", type=Path, required=True, help="JSON report; Markdown is written beside it"
     )
     parser.add_argument("--baseline", type=Path)
+    parser.add_argument("--diagnostics", type=Path, help="Raw synthetic observations; must target .local")
+    parser.add_argument("--acceptance", action="store_true")
+    parser.add_argument("--group", action="append", choices=["core", "development", "holdout"])
     parser.add_argument(
         "--record-baseline", type=Path, help="create, never overwrite, a reviewed measurement"
     )
     args = parser.parse_args()
+    if args.diagnostics:
+        diagnostic_path(args.diagnostics)
     corpus = release(args.source)
     payload, _ = read_index(args.index)
     if payload["corpus"] != corpus:
         raise ValueError("Index targets different corpus; rebuild it")
     suite = load_cases(args.cases, corpus)
+    selected_cases = [c for c in suite["cases"] if not args.group or c.get("group", "core") in args.group]
     result = report(
-        offline(args.index, args.source, suite["cases"]),
+        offline(args.index, args.source, selected_cases, args.diagnostics),
         corpus,
         suite,
         backend="offline",
@@ -335,6 +453,8 @@ def main() -> None:
     )
     baseline = json.loads(args.baseline.read_text()) if args.baseline else None
     failures = gate(result, baseline)
+    if args.acceptance:
+        failures += acceptance(result, suite)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, indent=2) + "\n")
     args.report.with_suffix(".md").write_text(markdown(result))

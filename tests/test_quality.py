@@ -9,7 +9,14 @@ from types import SimpleNamespace
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from evals.quality import Observation, gate, observe_native, score  # noqa: E402
+from evals.quality import (  # noqa: E402
+    Observation,
+    diagnostic_path,
+    fact_supported,
+    gate,
+    observe_native,
+    score,
+)
 
 
 class QualityTests(unittest.TestCase):
@@ -25,7 +32,10 @@ class QualityTests(unittest.TestCase):
         }
 
     def test_partial_retrieval_and_fact_coverage_do_not_pass(self):
-        row = score(self.case, Observation("One hour", ["a", "noise"], ["noise", "a", "a"], False, True))
+        row = score(
+            self.case,
+            Observation("Access expires after one hour", ["a", "noise"], ["noise", "a", "a"], False, True),
+        )
         self.assertEqual(row["retrieval_recall"], 0.5)
         self.assertEqual(row["reciprocal_rank"], 0.5)
         self.assertEqual(row["fact_coverage"], 0.5)
@@ -33,7 +43,16 @@ class QualityTests(unittest.TestCase):
         self.assertFalse(row["passed"])
 
     def test_all_reference_facts_and_sources_needed(self):
-        row = score(self.case, Observation("Commander; sixty minutes", ["a", "b"], ["b", "a"], False, True))
+        row = score(
+            self.case,
+            Observation(
+                "The incident commander approves access; Access expires after sixty minutes",
+                ["a", "b"],
+                ["b", "a"],
+                False,
+                True,
+            ),
+        )
         self.assertTrue(row["passed"])
         self.assertEqual(row["fact_coverage"], 1)
         self.assertEqual(row["retrieval_recall"], 1)
@@ -47,12 +66,30 @@ class QualityTests(unittest.TestCase):
         self.assertIsNone(row["retrieval_recall"])
 
     def test_forbidden_retrieved_context_is_a_leak_even_without_citation(self):
-        row = score(self.case, Observation("Commander; one hour", ["a", "b"], ["a", "private"], False, True))
+        row = score(
+            self.case,
+            Observation(
+                "The incident commander approves access; Access expires after one hour",
+                ["a", "b"],
+                ["a", "private"],
+                False,
+                True,
+            ),
+        )
         self.assertTrue(row["leak"])
         self.assertFalse(row["passed"])
 
     def test_baseline_cannot_waive_leak_and_each_case_is_gated(self):
-        row = score(self.case, Observation("Commander; one hour", ["a", "b"], ["a", "b"], False, True))
+        row = score(
+            self.case,
+            Observation(
+                "The incident commander approves access; Access expires after one hour",
+                ["a", "b"],
+                ["a", "b"],
+                False,
+                True,
+            ),
+        )
         result = dict(backend="offline", manifest_sha256="corpus", suite_sha256="suite", cases=[row])
         baseline = copy.deepcopy(result)
         result["cases"][0]["fact_coverage"] = 0.5
@@ -62,6 +99,26 @@ class QualityTests(unittest.TestCase):
         result["suite_sha256"] = "changed"
         with self.assertRaisesRegex(ValueError, "different"):
             gate(result, baseline)
+
+    def test_negation_contradiction_and_keyword_lists_do_not_earn_credit(self):
+        for answer in (
+            "Access does not expire after sixty minutes. The incident commander does not approve it.",
+            "Access expires after sixty minutes. Access does not expire after sixty minutes.",
+            "Keywords: commander; sixty minutes",
+            'The keyword "commander" appears in the index.',
+        ):
+            self.assertFalse(
+                score(self.case, Observation(answer, ["a", "b"], ["a", "b"], False, True))["passed"]
+            )
+        self.assertTrue(fact_supported("Shared accounts are prohibited.", ["prohibited"]))
+
+    def test_rejecting_a_false_premise_does_not_negate_the_correction(self):
+        self.assertTrue(fact_supported("No, access expires after sixty minutes.", ["sixty minutes"]))
+        self.assertFalse(fact_supported("No, access never expires after sixty minutes.", ["sixty minutes"]))
+
+    def test_raw_diagnostics_cannot_be_written_to_public_report(self):
+        with self.assertRaisesRegex(ValueError, "under .local"):
+            diagnostic_path(ROOT / "docs" / "unsafe-diagnostics.json")
 
 
 class NativeObservationTests(unittest.TestCase):
@@ -91,6 +148,8 @@ class NativeObservationTests(unittest.TestCase):
         ):
             observation = observe_native(self.response({"detail": {"verdict": verdict}}, status), {})
             self.assertTrue(observation.error)
+        generic = observe_native(self.response({"detail": "Blocked by policy"}, 400), {})
+        self.assertTrue(generic.error)
         safe = observe_native(self.response({"detail": {"verdict": "no_safe_evidence"}}, 400), {})
         self.assertFalse(safe.error)
         self.assertTrue(safe.refused)

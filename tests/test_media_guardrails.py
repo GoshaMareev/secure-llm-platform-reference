@@ -73,7 +73,7 @@ class MediaGuardrailTests(unittest.TestCase):
     def test_sensitive_speech_cues_with_unrecognized_values_fail_closed(self):
         for text in (
             "My email address is syntheticad-example-dot-test.",
-            "My phone number is two zero two five five five zero one nine nine.",
+            "My phone number is two zero two five five five zero unknown digits.",
             "The password is demo only value.",
         ):
             self.reply(text=text, kind="audio")
@@ -138,7 +138,7 @@ class MediaGuardrailTests(unittest.TestCase):
         self.assertEqual(str(caught.exception), "pii_check_unavailable_blocked")
 
     def test_unknown_asr_revision_and_language_fail_closed(self):
-        for changes in ({"revision": "new-unreviewed-model"}, {"language": "ru"}):
+        for changes in ({"revision": "new-unreviewed-model"}, {"language": "de"}):
             self.reply(kind="audio", **changes)
             with self.assertRaises(MediaRejected):
                 self.inspector.check(self.audio())

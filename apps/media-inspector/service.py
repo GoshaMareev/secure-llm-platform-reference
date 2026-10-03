@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import math
+import os
 import subprocess
 import tempfile
 import threading
@@ -103,9 +104,10 @@ def image_text(raw, format_):
     text = " ".join(words)
     if len(text) > MAX_EXTRACTED_CHARACTERS:
         raise MediaRejected("media_dimensions_limit")
-    # The shared Presidio deployment's NER is English. Do not imply that
-    # recognizing Cyrillic text grants equivalent personal-name protection.
-    if any("\u0400" <= char <= "\u04ff" for char in text):
+    if (
+        any("\u0400" <= char <= "\u04ff" for char in text)
+        and os.getenv("REFERENCE_RU_MEDIA_ENABLED", "false") != "true"
+    ):
         raise MediaRejected("media_language_not_supported")
     confidence = min(confidences) if confidences else 1.0
     if confidence < 0.65:
@@ -152,7 +154,8 @@ def audio_text(raw, format_):
         waveform, beam_size=5, vad_filter=True, condition_on_previous_text=False, word_timestamps=False
     )
     if (
-        info.language != "en"
+        info.language
+        not in ({"en", "ru"} if os.getenv("REFERENCE_RU_MEDIA_ENABLED", "false") == "true" else {"en"})
         or not math.isfinite(info.language_probability)
         or info.language_probability < 0.70
     ):
@@ -175,7 +178,7 @@ def audio_text(raw, format_):
     return {
         "text": text,
         "confidence": confidence,
-        "language": "en",
+        "language": info.language,
         "revision": ASR_REVISION,
         "engine": "faster-whisper-small",
     }
@@ -185,7 +188,7 @@ def inspect(payload):
     kind = payload.get("kind")
     common = {"schema_version": 1, "kind": kind}
     if not LOCK.acquire(blocking=False):
-        return {**common, "status": "unavailable", "reason": "media_check_unavailable"}
+        return {**common, "status": "unavailable", "reason": "media_capacity_exhausted"}
     try:
         format_ = payload.get("format")
         if (

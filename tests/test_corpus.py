@@ -60,11 +60,11 @@ class CorpusTests(unittest.TestCase):
     def test_new_version_preserves_previous_manifest(self):
         file = self.source / "catalog.json"
         catalog = json.loads(file.read_text())
-        catalog["corpus_version"] = "1.1.0"
+        catalog["corpus_version"] = "1.2.0"
         file.write_text(json.dumps(catalog))
         previous = (self.source / "releases/1.0.0.json").read_bytes()
         publish(self.source)
-        self.assertEqual(release(self.source)["corpus_version"], "1.1.0")
+        self.assertEqual(release(self.source)["corpus_version"], "1.2.0")
         self.assertEqual((self.source / "releases/1.0.0.json").read_bytes(), previous)
 
     def test_duplicate_document_and_path_escape_rejected(self):

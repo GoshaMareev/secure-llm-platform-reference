@@ -15,7 +15,11 @@ LiteLLM requires server-signed identity and policy context, then buffers and
 checks output before release. Provider credentials exist only in LiteLLM.
 
 The native application database is SQLite; pgvector holds vectors. Separate
-metadata-only runtime/audit volumes receive policy events with common IDs.
+metadata-only runtime/audit volumes receive policy events with common IDs. Native
+v2 audit is durable before successful response release and can be delivered by
+the private mTLS collector/shipper. Bounded chat/media admission, response
+deadlines, EN/RU Presidio and shadow decisions are documented in
+[versioned verification](verification/local-verification.md).
 This overlay keeps the API reference separate, rather than calling it as the
 Open WebUI retriever. See [ADR 0005](decisions/0005-native-openwebui-rag.md),
 [setup](openwebui.md) and [observed checks](full-stack-validation.md).

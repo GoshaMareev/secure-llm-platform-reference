@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "corpus_id": "northstar-reference",
-  "corpus_version": "1.0.0",
+  "corpus_version": "1.1.0",
   "cases": [
     {
       "id": "access-approval-1",

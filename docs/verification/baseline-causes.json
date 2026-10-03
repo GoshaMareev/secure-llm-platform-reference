@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "source_commit": "0f47fa20d1ce291a5b43ef823513211faf86930d",
+  "manifest_sha256": "ab9a6d03e213acebddd373a247fc664cf13708b4a9ee3bf8da909b6be9ecfd44",
+  "suite_sha256": "4019c914f838fc7e7904a6a84d6955dd25e451de079dadb40f2f90a42d460a6e",
+  "failures": [
+    {
+      "backend": "offline",
+      "id": "access-approval-2",
+      "cause": "evidence sufficiency",
+      "explanation": "Paraphrased authorization/activation terms dilute lexical confidence; screened evidence contains both approvers.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.0,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "access-expiry-1",
+      "cause": "extraction",
+      "explanation": "Approval sentence wins shared access vocabulary; adjacent expiry sentence is not extracted.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.0,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "access-expiry-2",
+      "cause": "extraction",
+      "explanation": "Question about expiry retrieves the correct document but selects the approval sentence.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.0,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "access-expiry-3",
+      "cause": "extraction",
+      "explanation": "Indefinite-access premise is not corrected using the adjacent sixty-minute sentence.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.0,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "model-routing-3",
+      "cause": "generation completeness",
+      "explanation": "Classification is included, but the adjacent mandatory local inference route is omitted.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.5,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "incident-2",
+      "cause": "evidence sufficiency",
+      "explanation": "Preserve/responders paraphrases lower confidence despite the evidence sentence being present.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.0,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "multi-access",
+      "cause": "evidence sufficiency and extraction",
+      "explanation": "Compound question dilutes lexical confidence; one-sentence extraction cannot cover approval and expiry.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.0,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "multi-recovery",
+      "cause": "evidence sufficiency and extraction",
+      "explanation": "Compound question is refused despite preservation and recovery evidence in the allowed document.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.0,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "ru-access",
+      "cause": "tokenization",
+      "explanation": "ASCII tokenization ignores Cyrillic question terms; production alone selects an unrelated routine sentence.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.0,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "ru-expiry",
+      "cause": "tokenization",
+      "explanation": "Cyrillic expiry question reduces to break-glass; approval sentence wins.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.0,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "access-distractor",
+      "cause": "evidence sufficiency",
+      "explanation": "Generic production/access overlap is accepted without evidence for the requested password.",
+      "retrieval_recall": null,
+      "fact_coverage": null,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "offline",
+      "id": "incident-distractor",
+      "cause": "evidence sufficiency",
+      "explanation": "Generic incident/commander overlap is accepted without salary evidence.",
+      "retrieval_recall": null,
+      "fact_coverage": null,
+      "runtime_error": false,
+      "metric_error_found": false
+    },
+    {
+      "backend": "native-openwebui",
+      "id": "model-routing-3",
+      "cause": "generation completeness",
+      "explanation": "Classification is included, but the adjacent mandatory local inference route is omitted.",
+      "retrieval_recall": 1.0,
+      "fact_coverage": 0.5,
+      "runtime_error": false,
+      "metric_error_found": false
+    }
+  ],
+  "method": "Inspect public per-case measurements and synthetic local offline trace. Native failure is evidenced by complete retrieval and one missing required fact; no raw live answers retained in historical public report.",
+  "native_raw_trace_available": false
+}

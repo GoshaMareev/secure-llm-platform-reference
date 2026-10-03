@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from .guardrails import CONTEXT_ONLY_RULES, EXFILTRATION_RULES, INJECTION_RULES, PiiServiceError, _matches
 
-MEDIA_POLICY_VERSION = "local-media-1"
+MEDIA_POLICY_VERSION = "local-media-2"
 ASR_REVISION = "536b0662742c02347bc0e980a01041f333bce120"
 MAX_MEDIA_BYTES = 4_000_000
 MAX_MEDIA_PARTS = 4
@@ -22,23 +22,67 @@ MAX_EXTRACTED_CHARACTERS = 12_000
 
 # High precision credentials, including secrets not covered by PII recognizers.
 _CREDENTIAL = re.compile(
-    r"(?i)\b(?:api[ _-]?key|password|secret[ _-]?key|access[ _-]?token)\s*[:=]\s*\S+"
+    r"(?i)\b(?:api[ _-]?(?:key|ключ)|password|пароль|секретный[ _-]?ключ|secret[ _-]?key|"
+    r"access[ _-]?token)\s*[:=]\s*\S+"
     r"|\bBearer\s+[A-Za-z0-9._-]{12,}"
     r"|\bsk-[A-Za-z0-9_-]{20,}"
     r"|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"
 )
 _SPOKEN_EMAIL = re.compile(
-    r"(?i)\b([a-z0-9][a-z0-9._-]*)(?:\s+at\s+|\s*@\s*)"
-    r"([a-z0-9-]+)(?:\s+dot\s+|\s*\.\s*)([a-z]{2,})\b"
+    r"(?i)\b([a-z0-9][a-z0-9._-]*)(?:\s+(?:at|собака)\s+|\s*@\s*)"
+    r"([a-z0-9-]+)(?:\s+(?:dot|точка)\s+|\s*\.\s*)([a-z]{2,})\b"
 )
 # ASR can confidently mishear a spelled address or number. Explicit sensitive
 # labels with no matching redaction are denied, rather than trusting confidence.
 _AUDIO_SENSITIVE_CUES = (
-    (re.compile(r"(?i)\be[- ]?mail(?:\s+address)?\b"), "email"),
-    (re.compile(r"(?i)\b(?:phone|telephone|mobile)\s+number\b"), "phone"),
-    (re.compile(r"(?i)\b(?:credit|payment)\s+card\b"), "card"),
-    (re.compile(r"(?i)\b(?:password|api[ _-]?key|secret[ _-]?key|access[ _-]?token)\b"), "credential"),
+    (re.compile(r"(?i)\bbearer\b|\bbare[ ,]+a\b[^.]{0,60}\btoken\b"), "credential"),
+    (re.compile(r"(?i)\b(?:e[- ]?mail(?:\s+address)?|электронная\s+почта|почта)\b"), "email"),
+    (re.compile(r"(?i)\b(?:phone|telephone|mobile)\s+number|телефон\w*\b"), "phone"),
+    (re.compile(r"(?i)\b(?:credit|payment)\s+card|(?:номер\s+)?карт[аыу]\b"), "card"),
+    (
+        re.compile(r"(?i)\b(?:password|парол\w*|api[ _-]?(?:key|ключ)|secret[ _-]?key|access[ _-]?token)\b"),
+        "credential",
+    ),
 )
+
+
+DIGIT_WORDS = {
+    "zero": "0",
+    "oh": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ноль": "0",
+    "нуль": "0",
+    "один": "1",
+    "одна": "1",
+    "два": "2",
+    "две": "2",
+    "три": "3",
+    "четыре": "4",
+    "пять": "5",
+    "шесть": "6",
+    "семь": "7",
+    "восемь": "8",
+    "девять": "9",
+}
+DIGIT_WORD = "(?:" + "|".join(DIGIT_WORDS) + ")"
+SPOKEN_NUMBER = re.compile(r"(?i)\b" + DIGIT_WORD + r"(?:[ ,.-]+" + DIGIT_WORD + r"){6,18}\b")
+
+
+def normalize_spoken(text: str) -> str:
+    text = _SPOKEN_EMAIL.sub(r"\1@\2.\3", text)
+
+    def number(match):
+        return "".join(DIGIT_WORDS[w.casefold()] for w in re.findall(DIGIT_WORD, match.group(), re.I))
+
+    return SPOKEN_NUMBER.sub(number, text)
 
 
 class MediaRejected(Exception):
@@ -63,6 +107,7 @@ class MediaResult:
     kind: str
     verdict: str
     redacted_kinds: tuple[str, ...]
+    untrusted_text: str = ""
 
 
 class LocalMediaInspector:
@@ -101,6 +146,7 @@ class LocalMediaInspector:
                 "media_no_speech",
                 "media_language_not_supported",
                 "media_check_unavailable",
+                "media_capacity_exhausted",
             }:
                 reason = "media_check_unavailable"
             raise MediaRejected(reason)
@@ -114,7 +160,9 @@ class LocalMediaInspector:
             or not 0 <= confidence <= 1
         ):
             raise MediaRejected("media_check_unavailable")
-        if kind == "audio" and (result.get("revision") != ASR_REVISION or result.get("language") != "en"):
+        if kind == "audio" and (
+            result.get("revision") != ASR_REVISION or result.get("language") not in {"en", "ru"}
+        ):
             raise MediaRejected("media_check_unavailable")
         if confidence < (0.65 if kind == "image" else 0.45):
             raise MediaRejected("media_low_confidence")
@@ -144,7 +192,7 @@ class LocalMediaInspector:
         result = self._inspect(kind, data, format_)
         text = result["text"]
         if kind == "audio":
-            text = _SPOKEN_EMAIL.sub(r"\1@\2.\3", text)
+            text = normalize_spoken(text)
         if _matches(text, (*INJECTION_RULES, *EXFILTRATION_RULES, *CONTEXT_ONLY_RULES)):
             raise MediaRejected("media_injection_blocked")
         secret = bool(_CREDENTIAL.search(text))
@@ -167,7 +215,7 @@ class LocalMediaInspector:
                 raise MediaRejected("media_check_unavailable")
             # Re-encoded pixels, with EXIF/comments/embedded metadata removed.
             safe = {"type": "image_url", "image_url": {"url": "data:image/png;base64," + clean_data}}
-            return MediaResult(safe, kind, "image_text_checked", ())
+            return MediaResult(safe, kind, "image_text_checked", (), clean)
         if not clean.strip():
             raise MediaRejected("media_no_speech")
         return MediaResult(
@@ -175,6 +223,7 @@ class LocalMediaInspector:
             kind,
             "audio_transcript_redacted" if kinds else "audio_transcript_checked",
             kinds,
+            clean,
         )
 
 

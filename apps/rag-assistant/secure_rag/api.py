@@ -275,17 +275,20 @@ def build_app(settings: Settings | None = None) -> FastAPI:
                     REQUESTS.labels(status="audit_error", refused="true").inc()
             elapsed = time.perf_counter() - started
             LATENCY.observe(elapsed)
-            operations.write(
-                OperationalEvent(
-                    timestamp=datetime.now(UTC).isoformat(),
-                    request_id=request_id,
-                    route="/v1/ask",
-                    status_code=status,
-                    latency_ms=round(elapsed * 1_000, 2),
-                    retrieved_chunks=retrieved_chunks,
-                    refused=refused,
-                    policy_verdicts=verdicts,
+            try:
+                operations.write(
+                    OperationalEvent(
+                        timestamp=datetime.now(UTC).isoformat(),
+                        request_id=request_id,
+                        route="/v1/ask",
+                        status_code=status,
+                        latency_ms=round(elapsed * 1_000, 2),
+                        retrieved_chunks=retrieved_chunks,
+                        refused=refused,
+                        policy_verdicts=verdicts,
+                    )
                 )
-            )
+            except OSError:
+                REQUESTS.labels(status="operational_log_error", refused=str(refused).lower()).inc()
 
     return app

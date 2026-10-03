@@ -1,0 +1,58 @@
+# Optional private SIEM-contract demonstration. No public collector endpoint.
+services:
+  audit-state-init:
+    image: python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+    profiles: [audit-delivery]
+    network_mode: none
+    user: '0:0'
+    command: [python, -c, "import os; [os.chown(p, int(os.environ['OWNER_UID']), int(os.environ['OWNER_GID'])) for p in ['/state', '/data']]"]
+    environment: {OWNER_UID: "${FULL_STACK_UID:-1000}", OWNER_GID: "${FULL_STACK_GID:-1000}"}
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+    volumes: [audit-delivery-state:/state, audit-collector-data:/data]
+  audit-collector:
+    image: python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+    profiles: [audit-delivery]
+    user: "${FULL_STACK_UID:-1000}:${FULL_STACK_GID:-1000}"
+    command: [python, /delivery/collector.py]
+    environment: {PYTHONPATH: '/reference'}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    depends_on: {audit-state-init: {condition: service_completed_successfully}}
+    volumes:
+      - ../audit/delivery:/delivery:ro
+      - ../apps/rag-assistant:/reference:ro
+      - ${AUDIT_CERT_DIR:-../.local/audit-certs}/ca.crt:/run/certs/ca.crt:ro
+      - ${AUDIT_CERT_DIR:-../.local/audit-certs}/collector.crt:/run/certs/collector.crt:ro
+      - ${AUDIT_CERT_DIR:-../.local/audit-certs}/collector.key:/run/certs/collector.key:ro
+      - audit-collector-data:/data
+    networks: [audit-delivery]
+  audit-shipper:
+    image: python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+    profiles: [audit-delivery]
+    user: "${FULL_STACK_UID:-1000}:${FULL_STACK_GID:-1000}"
+    command: [python, /delivery/shipper.py]
+    environment: {PYTHONPATH: '/reference'}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    depends_on: {audit-state-init: {condition: service_completed_successfully}}
+    volumes:
+      - ../audit/delivery:/delivery:ro
+      - ../apps/rag-assistant:/reference:ro
+      - ${AUDIT_CERT_DIR:-../.local/audit-certs}/ca.crt:/run/certs/ca.crt:ro
+      - ${AUDIT_CERT_DIR:-../.local/audit-certs}/shipper.crt:/run/certs/shipper.crt:ro
+      - ${AUDIT_CERT_DIR:-../.local/audit-certs}/shipper.key:/run/certs/shipper.key:ro
+      - webui-audit:/spool:ro
+      - audit-delivery-state:/state
+    networks: [audit-delivery]
+  litellm:
+    volumes: [audit-delivery-state:/var/lib/audit-delivery:ro]
+  open-webui:
+    volumes: [audit-delivery-state:/var/lib/audit-delivery:ro]
+networks:
+  audit-delivery: {internal: true}
+volumes:
+  audit-delivery-state:
+  audit-collector-data:

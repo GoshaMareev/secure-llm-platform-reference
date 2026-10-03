@@ -91,8 +91,10 @@ def scan_text(path: Path, text: str, denylist: tuple[str, ...], *, prefix: str =
 def scan_worktree(denylist: tuple[str, ...]) -> list[str]:
     problems: list[str] = []
     for path in candidate_files():
-        if path.stat().st_size > MAX_TEXT_BYTES:
-            problems.append(f"{path.relative_to(ROOT)}: file exceeds {MAX_TEXT_BYTES} bytes")
+        # Large, source-reviewed CycloneDX inventories are bounded JSON; still scan every line.
+        limit = 12_000_000 if path.parent == ROOT / "docs/verification/sbom" else MAX_TEXT_BYTES
+        if path.stat().st_size > limit:
+            problems.append(f"{path.relative_to(ROOT)}: file exceeds {limit} bytes")
             continue
         data = path.read_bytes()
         if b"\0" in data:

@@ -58,6 +58,11 @@ def baseline(case, question):
         return bool(
             _matches(state["query"], tuple(r for r in INJECTION_RULES if r.name == "reveal-system-prompt"))
         )
+    if question.startswith("untrusted_"):
+        index = int(question.split("_")[1])
+        return bool(
+            _matches(state.get("untrusted_inputs", [])[index], (*INJECTION_RULES, *EXFILTRATION_RULES))
+        )
     if question.endswith("_attack"):
         index = int(question.split("_")[1])
         return bool(
@@ -97,6 +102,7 @@ def evaluate(client, data, corpus):
     pii = RegexPiiRedactor()  # Fixtures are synthetic; runtime uses mandatory Presidio.
     for case in data["cases"]:
         state = {
+            "untrusted_inputs": [pii.redact(text)[0] for text in case["state"].get("untrusted_inputs", [])],
             "query": pii.redact(case["state"]["query"])[0],
             "passages": [pii.redact(text)[0] for text in case["state"]["passages"]],
         }
@@ -109,6 +115,7 @@ def evaluate(client, data, corpus):
         except DecisionUnavailable as error:
             call = {"case_id": case["id"], "status": "unavailable", "reason": str(error)}
             scores = {}
+        call.update(language=case["language"], task=case["stage"], split=case["split"])
         calls.append(call)
         for question, label in case["labels"].items():
             rows.append(
@@ -151,6 +158,20 @@ def evaluate(client, data, corpus):
         "p95_latency_ms": latencies[max(0, (len(latencies) * 95 + 99) // 100 - 1)] if latencies else None,
         "reported_cost_usd": round(sum(c.get("cost_usd") or 0 for c in calls), 8),
         "cost_reporting_complete": all(c.get("cost_usd") is not None for c in calls),
+        "call_metrics": {
+            key: {
+                "calls": len(group),
+                "unavailable": sum(c["status"] != "ok" for c in group),
+                "reported_cost_usd": round(sum(c.get("cost_usd") or 0 for c in group), 8),
+                "p95_latency_ms": sorted(c["latency_ms"] for c in group if c["status"] == "ok")[
+                    max(0, (sum(c["status"] == "ok" for c in group) * 95 + 99) // 100 - 1)
+                ]
+                if any(c["status"] == "ok" for c in group)
+                else None,
+            }
+            for key in sorted({c["language"] + "/" + c["task"] for c in calls})
+            for group in [[c for c in calls if c["language"] + "/" + c["task"] == key]]
+        },
         "metrics": {key: metrics(group) for key, group in sorted(groups.items())},
         "deterministic_baseline": baseline_groups,
         "judgments": rows,
@@ -160,7 +181,8 @@ def evaluate(client, data, corpus):
             "Development and holdout are separate; do not retune policy using holdout labels.",
             "Unavailable judgments are excluded from accuracy and reported; they are not approvals.",
             "Passages are fixtures, not retrieval results; corpus manifest binds the project release.",
-            "Only text evaluated. Sensitive content in images/audio remains a separate task.",
+            "Only text decisions evaluated, including cleaned OCR/STT fixtures as untrusted inputs; "
+            "actual media privacy has its own independent benchmark.",
         ],
     }
 

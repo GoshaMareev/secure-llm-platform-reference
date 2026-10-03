@@ -52,7 +52,7 @@ class NativePolicyTests(unittest.IsolatedAsyncioTestCase):
                 }
             }
         }
-        with patch("reference_rerank.bind"), patch("reference_filter.release", return_value=corpus):
+        with patch("reference_rerank.bind"), patch("reference_filter.active_release", return_value=corpus):
             with self.assertRaises(HTTPException) as caught:
                 await self.filter.inlet({}, {"id": "reader-demo"}, {}, model, self.request)
         self.assertEqual(caught.exception.detail["verdict"], "corpus_version_mismatch")
@@ -61,7 +61,7 @@ class NativePolicyTests(unittest.IsolatedAsyncioTestCase):
         model = {"info": {"meta": {"reference_grounded": True}}}
         with (
             patch("reference_rerank.bind"),
-            patch("reference_filter.release", side_effect=ValueError("drift")),
+            patch("reference_filter.active_release", side_effect=ValueError("drift")),
         ):
             with self.assertRaises(HTTPException) as caught:
                 await self.filter.inlet({}, {"id": "reader-demo"}, {}, model, self.request)

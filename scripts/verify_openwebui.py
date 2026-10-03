@@ -220,7 +220,8 @@ def verify(live):
             and "REDACTED" in json.dumps(response.json()),
         )
     audit = [
-        json.loads(line) for line in Path("/var/log/reference/audit/audit.jsonl").read_text().splitlines()
+        json.loads(line)
+        for line in Path("/var/log/reference/audit/gateway.audit.jsonl").read_text().splitlines()
     ]
     runtime = [
         json.loads(line) for line in Path("/var/log/reference/runtime/runtime.jsonl").read_text().splitlines()

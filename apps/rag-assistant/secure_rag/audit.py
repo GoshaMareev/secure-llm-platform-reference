@@ -24,6 +24,8 @@ def _append_json(path: Path, event: dict[str, Any]) -> None:
         descriptor = os.open(path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
         with os.fdopen(descriptor, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
 
 
 @dataclass(frozen=True, slots=True)
