@@ -105,6 +105,32 @@ QUERY_SCAFFOLD = {
     "ai",
     "in",
 }
+QUERY_GRAMMAR = {"service", "handle", "handles", "handled", "act", "as", "apply", "applies", "ignore"}
+
+
+def _fact_question(question: str) -> str:
+    """Discard masked declarative introductions and recipient/signature suffixes.
+
+    Screening/redaction already ran on the complete input. Question clauses and
+    unsupported factual nouns remain subject to the evidence sufficiency check.
+    """
+    clauses = re.split(r"(?<=[.;])\s+", question)
+    while (
+        len(clauses) > 1
+        and re.search(r"\[REDACTED_[A-Z_]+\]", clauses[0])
+        and "?" not in clauses[0]
+        and not re.match(
+            r"(?:what|who|how|which|why|where|when|кто|что|как|какой|почему)\b", clauses[0], re.I
+        )
+    ):
+        clauses.pop(0)
+    return re.sub(
+        r"(?<=\?)\s*(?:reply\s+to|refund\s+to|signed[,]?)\s*"
+        r"(?:\[REDACTED_[A-Z_]+\][,\s]*)+[.!]?\s*$",
+        "",
+        " ".join(clauses),
+        flags=re.I,
+    )
 
 
 class DemoGateway:
@@ -121,7 +147,7 @@ class DemoGateway:
         empty = ExtractiveAnswer("I do not have enough grounded context to answer.")
         if not context:
             return empty
-        base = tokenize(question)
+        base = tokenize(_fact_question(question))
         expanded = expand_tokens(base, self._glossary)
         stems = _stems(expanded)
         evidence_stems = _stems(tuple(t for item in context for t in tokenize(item.chunk.text)))
@@ -130,6 +156,7 @@ class DemoGateway:
             for t in base
             if t[:_STEM_LENGTH] not in evidence_stems
             and t not in self._glossary
+            and t not in QUERY_GRAMMAR
             and not any(t.startswith(sc) for sc in QUERY_SCAFFOLD)
         ]
         if unknown:

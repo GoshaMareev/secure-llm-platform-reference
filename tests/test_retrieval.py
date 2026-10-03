@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "apps" / "rag-assistant"))
 
 from secure_rag.authorization import RetrievalScope  # noqa: E402
 from secure_rag.gateway import DemoGateway  # noqa: E402
+from secure_rag.guardrails import Guardrails  # noqa: E402
 from secure_rag.retrieval import Retriever, load_glossary  # noqa: E402
 from secure_rag.service import RAGService  # noqa: E402
 
@@ -67,6 +68,38 @@ class RetrievalTests(unittest.TestCase):
         )
         source_ids = [citation["source_id"] for citation in answer.citations]
         self.assertEqual(source_ids, list(dict.fromkeys(source_ids)))
+
+    def test_masked_clauses_do_not_hide_unsupported_requested_facts(self) -> None:
+        glossary = load_glossary(ROOT / "sample-data" / "glossary.json")
+        service = RAGService(
+            self.retriever, DemoGateway(glossary), min_confidence=0.34, top_k=3, guardrails=Guardrails()
+        )
+        scope = RetrievalScope(frozenset({"all", "engineers"}))
+        for question in (
+            "My email is demo@example.test. What is the incident budget?",
+            "What salary is associated with demo@example.test? Who approves emergency access?",
+            "Which asset handles emergency access?",
+        ):
+            with self.subTest(question=question):
+                answer = service.ask(question, scope=scope)
+                self.assertTrue(answer.refused)
+                self.assertEqual(answer.citations, ())
+
+    def test_action_paraphrase_and_masked_recipient_preserve_policy_facts(self) -> None:
+        glossary = load_glossary(ROOT / "sample-data" / "glossary.json")
+        service = RAGService(
+            self.retriever, DemoGateway(glossary), min_confidence=0.34, top_k=3, guardrails=Guardrails()
+        )
+        scope = RetrievalScope(frozenset({"all", "engineers"}))
+        for question, fact in (
+            ("Which inference route handles restricted content?", "local inference route"),
+            ("Who can approve emergency access? Reply to demo@example.test.", "incident commander"),
+        ):
+            with self.subTest(question=question):
+                answer = service.ask(question, scope=scope)
+                self.assertFalse(answer.refused)
+                self.assertIn(fact, answer.text.lower())
+                self.assertNotIn("demo@example.test", answer.text)
 
 
 if __name__ == "__main__":
