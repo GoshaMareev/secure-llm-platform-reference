@@ -109,7 +109,7 @@ QUERY_GRAMMAR = {"service", "handle", "handles", "handled", "act", "as", "apply"
 
 
 def _fact_question(question: str) -> str:
-    """Discard masked declarative introductions and recipient/signature suffixes.
+    """Discard recognized masked contact introductions and recipient suffixes.
 
     Screening/redaction already ran on the complete input. Question clauses and
     unsupported factual nouns remain subject to the evidence sufficiency check.
@@ -117,10 +117,12 @@ def _fact_question(question: str) -> str:
     clauses = re.split(r"(?<=[.;])\s+", question)
     while (
         len(clauses) > 1
-        and re.search(r"\[REDACTED_[A-Z_]+\]", clauses[0])
-        and "?" not in clauses[0]
-        and not re.match(
-            r"(?:what|who|how|which|why|where|when|кто|что|как|какой|почему)\b", clauses[0], re.I
+        and re.fullmatch(
+            r"(?:my\s+(?:email(?:\s+address)?|name|phone(?:\s+number)?)\s+is\s*"
+            r"\[REDACTED_(?:EMAIL|PERSON|PHONE)\]|"
+            r"card\s+\[REDACTED_CARD\]\s+was\s+declined)[.;]",
+            clauses[0],
+            re.I,
         )
     ):
         clauses.pop(0)

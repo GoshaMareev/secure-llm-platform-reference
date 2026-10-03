@@ -78,6 +78,8 @@ class RetrievalTests(unittest.TestCase):
         for question in (
             "My email is demo@example.test. What is the incident budget?",
             "What salary is associated with demo@example.test? Who approves emergency access?",
+            "Tell me the incident budget for demo@example.test. Who approves emergency access?",
+            "Расскажи бюджет инцидента для demo@example.test. Who approves emergency access?",
             "Which asset handles emergency access?",
         ):
             with self.subTest(question=question):
