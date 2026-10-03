@@ -1,5 +1,9 @@
 # Two-minute workspace walkthrough
 
+This is the independent deterministic API workspace. The primary hosted-model
+demonstration now uses [native Open WebUI](openwebui.md). Both profiles use port
+4180 locally, so select the intended Compose overrides before presenting.
+
 The browser workspace at `/` uses the same protected API as Swagger. It has no
 frontend role selector: `/v1/session` reports the current subject's server-owned
 permissions, and `/v1/ask` enforces those permissions independently on every call.

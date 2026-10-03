@@ -7,6 +7,10 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 
 ## What this demonstrates
 
+- a primary **Google SSO → Open WebUI native Knowledge RAG → LiteLLM → OpenRouter** path, with pgvector, external embeddings/reranking and two document scopes ([run it](docs/openwebui.md));
+- text, image, audio and video input routes through one model gateway, checked on synthetic fixtures; text privacy controls do not inspect media content;
+- mandatory native context checks and gateway output checks, with direct API bypass attempts blocked ([live evidence](docs/full-stack-validation.md));
+- an independent deterministic API reference for reproducible offline evaluation;
 - a browser workspace with server-derived roles, scenario presets, cited answers and request IDs;
 - identity-derived document scope that caller filters can only narrow;
 - metadata-scoped hybrid retrieval with deterministic offline embeddings;
@@ -21,6 +25,27 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 - least-privilege container defaults and isolated observability volumes.
 
 ## Architecture
+
+The primary interactive path uses Open WebUI's own ingestion and retrieval:
+
+```mermaid
+flowchart LR
+    U[Two Google accounts] --> A[OAuth2 Proxy]
+    A --> W[Open WebUI + native groups/Knowledge]
+    W --> V[(pgvector)]
+    W --> F[Mandatory input/context filter]
+    F --> L[LiteLLM + mandatory output policy]
+    W -- embeddings / reranking --> L
+    L --> O[OpenRouter]
+    F -- text PII --> P[Presidio]
+    L -- text PII --> P
+    F --> R[(Operational events)]
+    L --> R
+    F --> AU[(Separate audit events)]
+    L --> AU
+```
+
+The independent API control reference retains this path:
 
 ```mermaid
 flowchart LR
@@ -87,6 +112,13 @@ The default gateway is deterministic and offline. It makes the repository testab
 
 ## Run the portfolio stack
 
+For the primary Open WebUI demonstration, follow [native setup and the short
+walkthrough](docs/openwebui.md). All five model aliases use LiteLLM; Open WebUI
+has no provider credential. [ADR 0005](docs/decisions/0005-native-openwebui-rag.md)
+explains the scope and the pinned-version compatibility layer.
+
+### Independent API control reference
+
 For ordinary Google accounts, follow the [Google SSO local walkthrough](docs/google-sso.md).
 It uses a separate Compose override, explicit login allowlist, private file-mounted
 credentials and an operator-owned policy keyed by stable Google IDs.
@@ -110,6 +142,10 @@ For Entra setup, register a single-tenant web application with redirect URI `htt
 
 ## Evaluation
 
+The figures below belong to the deterministic API control reference. Native
+Open WebUI with hosted models has a separate [validation report](docs/full-stack-validation.md);
+its observed outputs are not a general model-quality benchmark.
+
 ```bash
 make eval            # regex PII backend, no extra dependencies; writes evals/report.md
 make eval-presidio   # Presidio backend; needs make presidio-up
@@ -132,6 +168,15 @@ curl -s http://127.0.0.1:8000/v1/ask -H 'content-type: application/json' \
 ```
 
 ## Portfolio walkthrough
+
+Start the primary [Open WebUI walkthrough](docs/openwebui.md) for real hosted
+inference and native document permissions. It includes reproducible ACL/bypass
+checks and separate event streams. Pinned-image policy regressions run offline:
+
+```bash
+python3 scripts/verify_full_stack_config.py
+python3 scripts/test_full_stack_boundaries.py
+```
 
 Start with the [browser walkthrough](docs/demo-workspace.md): six short steps
 show an answer, a refusal, injection blocking and different document access for
@@ -162,6 +207,7 @@ PUBLICATION_DENYLIST_FILE=/absolute/path/to/private-denylist.txt \
 
 ```text
 apps/rag-assistant/       API, browser workspace and orchestration
+apps/open-webui/          mandatory native RAG policy and rerank compatibility boundary
 gateway/                  model-gateway interface and LiteLLM config with Presidio guardrails
 ingestion/                safe corpus loading, chunking, and index build
 evals/                    grounding, scope and adversarial cases; runner and report
@@ -179,7 +225,7 @@ tests/                    offline unit tests
 - replace the synthetic server-owned subject policy with deployment-specific Entra claim mapping;
 - validate ingress provenance against the real proxy; extend audit rotation/durability and gateway outage tests;
 - generate an SBOM and dependency-license report, then repeat the security review against the hardened revision;
-- add a semantic-embedding backend (pgvector) and clear the known-limitation evaluation cases;
+- benchmark native semantic retrieval/reranking across paraphrases and version the corpus; keep the API control reference's known evaluation limitations explicit;
 - put a trained prompt-injection classifier behind the `Guardrails` interface and compare it on the same cases;
 - validate production inference quality separately from synthetic gateway/control checks.
 

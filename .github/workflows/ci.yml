@@ -29,7 +29,7 @@ jobs:
       - name: Check Python code
         run: |
           python -m pip install ruff==0.16.6
-          python -m ruff check apps ingestion evals tests scripts
+          python -m ruff check apps ingestion evals tests scripts gateway infra/full-stack-entrypoint.py
 
       - name: Check browser workspace JavaScript
         run: node --check apps/rag-assistant/secure_rag/web/workspace.js
@@ -52,6 +52,9 @@ jobs:
       - name: Validate Google override and pinned OAuth2 Proxy
         run: python scripts/verify_google_sso_config.py
 
+      - name: Validate native full-stack boundaries without credentials
+        run: python scripts/verify_full_stack_config.py
+
       - name: Upload offline evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -60,6 +63,15 @@ jobs:
           path: |
             .local/evaluation-report.md
             .local/walkthrough-report.md
+
+  native-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Verify native policy in pinned images without network or provider keys
+        run: python3 scripts/test_full_stack_boundaries.py
 
   presidio:
     # Same tests and evaluation against the real Presidio containers that the

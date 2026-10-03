@@ -61,3 +61,8 @@ This validates a local identity and authorization flow. HTTPS deployment, real
 Entra login, Google Workspace group synchronization and external model inference
 remain separate work. It does not demonstrate production deployment or model
 jailbreak resistance.
+## Native Open WebUI follow-up
+
+The checks below describe the independent API reference. For the subsequent
+Open WebUI/LiteLLM/OpenRouter flow, see [full-stack validation](full-stack-validation.md)
+and the [native walkthrough](openwebui.md).

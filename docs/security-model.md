@@ -1,5 +1,44 @@
 # Security model
 
+## Native Open WebUI profile
+
+The primary native profile adds its own boundary. Google authenticates both
+normal users; an explicit enrollment assigns General to both and Engineering
+only to the engineer. Private native Knowledge/file/vector handlers enforce
+read permissions even when callers supply IDs directly. Operator RAG models fix
+their Knowledge scope, so caller collection/mode changes cannot broaden it.
+
+Open WebUI has no public backend port or provider key. The proxy strips caller
+identity headers. A global filter binds verified identity to external reranking,
+requires successful reranking, quarantines unsafe text and replaces the original
+unscreened context. Only screened citations are emitted to the browser.
+LiteLLM verifies a server-signed user JWT and requires signed filter context for
+chat; lower-level proxy routes cannot skip the policy. Native proxy auth rejects
+caller credentials/provider URLs before routing. Buffered final text passes
+PII, prompt-echo and exfiltration checks before release; reasoning, annotations,
+tool/media outputs are not exposed.
+
+Operational and audit events in this profile contain verdicts and request IDs,
+with salted actor hashes only in audit. Neither stream stores prompts, answers,
+emails or tokens. Both services can write both volumes: this prevents ordinary
+observability leakage, not a compromised application or host administrator.
+The current profile does not ship those new streams to Loki or SIEM.
+Ingress header trust also assumes the internal application network is trusted:
+a compromised peer container could impersonate a user at Open WebUI's trusted
+header endpoint. A hosted production design must enforce proxy provenance,
+separate backend connectivity or use native verified OIDC at that boundary.
+
+Embedding background work may use the internal gateway credential without a
+user JWT; it grants no chat or document access. Text PII masking precedes
+embedding/rerank provider calls. Media-content PII is not inspected. The sample
+media are generated shapes/tones only. Native document state can retain original
+synthetic source text; model/citation redaction does not mean deletion from the
+authorized document store. Remote-model quality and English-rule bypasses remain
+limitations. See [ADR 0005](decisions/0005-native-openwebui-rag.md) and
+[native checks](full-stack-validation.md).
+
+The following sections describe the independent API control reference.
+
 ## Protected assets
 
 - prompts, answers, retrieved context, and user identity;

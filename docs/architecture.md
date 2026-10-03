@@ -4,7 +4,23 @@
 
 This repository shows the minimum useful slice of a secure enterprise LLM platform without reproducing a real deployment. The demo is deliberately small enough to run locally while preserving the boundaries that matter in production.
 
-## Request path
+## Primary native request path
+
+Google SSO through OAuth2 Proxy enters Open WebUI. Native groups authorize
+private Knowledge collections and scoped RAG models; both demo identities are
+regular users. Native ingestion/chunking and pgvector retrieval use external
+embedding/rerank aliases through LiteLLM. A mandatory filter screens input,
+quarantines unsafe retrieved chunks, redacts text PII and rebuilds the context.
+LiteLLM requires server-signed identity and policy context, then buffers and
+checks output before release. Provider credentials exist only in LiteLLM.
+
+The native application database is SQLite; pgvector holds vectors. Separate
+metadata-only runtime/audit volumes receive policy events with common IDs.
+This overlay keeps the API reference separate, rather than calling it as the
+Open WebUI retriever. See [ADR 0005](decisions/0005-native-openwebui-rag.md),
+[setup](openwebui.md) and [observed checks](full-stack-validation.md).
+
+## Independent API control path
 
 1. In Compose, OAuth2 Proxy authenticates the caller with Microsoft Entra ID and forwards a trusted user header.
 2. The API validates the question, authenticated actor header, and bounded metadata filters.
