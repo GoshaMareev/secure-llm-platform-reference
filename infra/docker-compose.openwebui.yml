@@ -4,7 +4,9 @@ services:
     command: ["--config", "/etc/oauth2-proxy/google.cfg"]
     volumes:
       - ./oauth2-proxy-google-openwebui.cfg:/etc/oauth2-proxy/google.cfg:ro
-    depends_on:
+    # Native WebUI is the upstream; the separate deterministic API has its own
+    # corpus-pinned identity policy and is not a dependency of this profile.
+    depends_on: !override
       open-webui:
         condition: service_healthy
 
@@ -35,6 +37,30 @@ services:
     depends_on:
       webui-state-init:
         condition: service_completed_successfully
+      media-inspector:
+        condition: service_healthy
+
+  media-inspector:
+    profiles: [openwebui]
+    build:
+      context: ..
+      dockerfile: apps/media-inspector/Dockerfile
+      target: runtime
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1536m
+    cpus: "2"
+    pids_limit: 64
+    networks: [platform]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
 
   webui-state-init:
     image: python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
@@ -172,6 +198,7 @@ services:
       - ../apps/open-webui/reference_rerank.py:/reference/reference_rerank.py:ro
       - ../scripts/bootstrap_openwebui.py:/reference/bootstrap.py:ro
       - ../scripts/verify_openwebui.py:/reference/verify.py:ro
+      - ../scripts/verify_native_media.py:/reference/verify-native-media.py:ro
       - ../scripts/verify_decisions.py:/reference/verify-decisions.py:ro
       - ../scripts/evaluate_openwebui.py:/reference/evaluate.py:ro
       - ../evals:/reference/evals:ro

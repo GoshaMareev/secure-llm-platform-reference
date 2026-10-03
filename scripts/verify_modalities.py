@@ -1,7 +1,7 @@
 """Tiny synthetic media probes through LiteLLM; run in Open WebUI container.
 
 Image/audio are generated in memory. Optional video must be a synthetic fixture,
-not a personal recording. This exercises model input modalities, not STT/TTS or
+not a personal recording. Tone/video now probe policy rejection. This does not test
 Open WebUI's media-upload workflows. Requires authorization for hosted calls.
 """
 
@@ -77,7 +77,7 @@ def verify(video):
             "reference-multimodal",
             "Describe the audible sound in at most 15 words.",
             {"type": "input_audio", "input_audio": {"data": b64(audio()), "format": "wav"}},
-            ("tone", "beep", "steady", "sine"),
+            ("media_no_speech", "media_low_confidence", "media_language_not_supported"),
         ),
     ]
     if video:
@@ -90,7 +90,7 @@ def verify(video):
                     "type": "video_url",
                     "video_url": {"url": "data:video/mp4;base64," + b64(video.read_bytes())},
                 },
-                ("red",),
+                ("unsupported_media_input",),
             )
         )
     results = []
@@ -127,7 +127,11 @@ def verify(video):
                 "modality": name,
                 "model_alias": model,
                 "http_status": response.status_code,
-                "passed": response.status_code == 200 and any(term in content.lower() for term in expected),
+                "passed": (
+                    response.status_code == 200 and any(term in content.lower() for term in expected)
+                    if name == "vision"
+                    else response.status_code == 400 and any(term in response.text for term in expected)
+                ),
                 "answer": content if response.status_code == 200 else "Provider error omitted",
                 "request_id": request_id,
             }

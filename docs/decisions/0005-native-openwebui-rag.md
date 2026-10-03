@@ -5,8 +5,10 @@ Status: accepted for the portfolio reference.
 ## Decision
 
 Use native Open WebUI Knowledge, groups, file permissions and pgvector retrieval
-for the primary demonstration. Route chat, image/audio/video input, embeddings
-and reranking through LiteLLM to OpenRouter. Keep provider credentials only at
+for the primary demonstration. Route chat, checked image input, sanitized speech
+text, embeddings and reranking through LiteLLM to OpenRouter. The subsequent
+[media privacy policy](../media-guardrails.md) replaces the original raw audio/video
+routing: local OCR/STT is mandatory and video is blocked. Keep provider credentials only at
 the gateway. Keep the original RAG API as an independent deterministic control
 reference and evaluation harness.
 

@@ -8,7 +8,7 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 ## What this demonstrates
 
 - a primary **Google SSO → Open WebUI native Knowledge RAG → LiteLLM → OpenRouter** path, with pgvector, external embeddings/reranking and two document scopes ([run it](docs/openwebui.md));
-- text, image, audio and video input routes through one model gateway, checked on synthetic fixtures; text privacy controls do not inspect media content;
+- mandatory [local media privacy checks](docs/media-guardrails.md): OCR-screened images and sanitized speech transcripts through the model gateway; video and remote media URLs are blocked;
 - mandatory native context checks and gateway output checks, with direct API bypass attempts blocked ([live evidence](docs/full-stack-validation.md));
 - an independent deterministic API reference for reproducible offline evaluation;
 - a browser workspace with server-derived roles, scenario presets, cited answers and request IDs;
@@ -43,6 +43,8 @@ flowchart LR
     L --> O[OpenRouter]
     F -- text PII --> P[Presidio]
     L -- text PII --> P
+    L -- inline image / audio --> M[Private local OCR / STT]
+    M -- extracted text --> L
     F --> R[(Operational events)]
     L --> R
     F --> AU[(Separate audit events)]

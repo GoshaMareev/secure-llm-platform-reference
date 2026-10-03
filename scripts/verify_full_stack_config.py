@@ -36,6 +36,15 @@ def verify():
     webui = services["open-webui"]
     gateway = services["litellm"]
     database = services["webui-postgres"]
+    media = services["media-inspector"]
+    if (
+        media.get("ports")
+        or media.get("secrets")
+        or set(media["networks"]) != {"platform"}
+        or not media.get("read_only")
+        or not media.get("mem_limit")
+    ):
+        raise ValueError("Media inspection must stay private, bounded and without provider credentials")
     for service in (webui, gateway, database):
         if service.get("ports") or "@sha256:" not in service["image"]:
             raise ValueError("Native services must be unpublished and digest-pinned")

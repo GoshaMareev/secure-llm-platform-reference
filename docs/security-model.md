@@ -30,12 +30,26 @@ separate backend connectivity or use native verified OIDC at that boundary.
 
 Embedding background work may use the internal gateway credential without a
 user JWT; it grants no chat or document access. Text PII masking precedes
-embedding/rerank provider calls. Media-content PII is not inspected. The sample
-media are generated shapes/tones only. Native document state can retain original
+embedding/rerank provider calls. Inline images/audio are checked at the gateway
+by a private CPU-only OCR/STT service without provider credentials or internet
+access. Sensitive OCR text blocks the image; metadata is stripped from allowed
+pixels. Audio is replaced by a locally transcribed, PII-redacted text part.
+Recognition/PII failures deny the request. Remote URLs and video are rejected.
+See [media policy, evaluation and limits](media-guardrails.md): this covers
+recognized English text/speech, not faces, biometrics or all hidden visual text.
+Native document or chat state can retain original
 synthetic source text; model/citation redaction does not mean deletion from the
 authorized document store. Remote-model quality and English-rule bypasses remain
 limitations. See [ADR 0005](decisions/0005-native-openwebui-rag.md) and
 [native checks](full-stack-validation.md).
+
+The media inspector accepts only a bounded inline payload from the internal
+platform network. It has no host port, no secrets, a read-only filesystem, a
+temporary-memory OCR workspace, CPU/memory/process limits and one active task.
+Only public model/package downloads occur during image build. Extracted text and
+recordings are transient and never enter operational/audit events. Gateway
+events carry media policy version, kind, redacted entity kinds and ASR revision.
+OCR/STT confidence thresholds do not prove that all sensitive content was found.
 
 The following sections describe the independent API control reference.
 

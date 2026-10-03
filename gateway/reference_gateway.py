@@ -22,6 +22,13 @@ from secure_rag.decision_guardrails import (
     validate_state,
 )
 from secure_rag.guardrails import Guardrails, PiiServiceError
+from secure_rag.media_guardrails import (
+    ASR_REVISION,
+    MAX_MEDIA_PARTS,
+    MEDIA_POLICY_VERSION,
+    LocalMediaInspector,
+    MediaRejected,
+)
 from secure_rag.presidio_pii import PresidioHttpRedactor
 
 
@@ -32,6 +39,7 @@ class ReferencePolicy(CustomLogger):
         super().__init__(turn_off_message_logging=True)
         self.pii = PresidioHttpRedactor()
         self.guardrails = Guardrails(pii=self.pii)
+        self.media = LocalMediaInspector(self.pii)
         self.decision_mode = os.environ.get("REFERENCE_DECISION_MODE", "off")
         if self.decision_mode not in {"off", "shadow"}:
             raise ValueError("Decision mode must be off or shadow; enforcement is not calibrated")
@@ -88,10 +96,12 @@ class ReferencePolicy(CustomLogger):
             }
         self.record_decision(data, event)
 
-    def record(self, data, verdict, outcome):
+    def record(self, data, verdict, outcome, *, media=None):
         metadata = data.setdefault("metadata", {})
         request_id = metadata.setdefault("reference_request_id", str(uuid.uuid4()))
         common = {"timestamp": time.time(), "request_id": request_id, "outcome": outcome, "verdict": verdict}
+        if media is not None:
+            common["media"] = media
         if metadata.get("reference_blocked_role"):
             common["blocked_role"] = metadata["reference_blocked_role"]
         records = (
@@ -115,9 +125,9 @@ class ReferencePolicy(CustomLogger):
             finally:
                 os.close(fd)
 
-    def deny(self, data, verdict):
+    def deny(self, data, verdict, *, media=None):
         self._decision_contexts.pop(data.get("metadata", {}).get("reference_request_id"), None)
-        self.record(data, verdict, "blocked")
+        self.record(data, verdict, "blocked", media=media)
         raise HTTPException(
             400,
             detail={
@@ -210,24 +220,68 @@ class ReferencePolicy(CustomLogger):
                 self.deny(data, "unsupported_tools")
             if data.get("audio") or data.get("modalities", ["text"]) != ["text"]:
                 self.deny(data, "unsupported_media_output")
+            if any(
+                data.get(key)
+                for key in (
+                    "extra_body",
+                    "input_audio",
+                    "image_url",
+                    "video_url",
+                    "images",
+                    "file",
+                    "files",
+                    "attachments",
+                    "input",
+                )
+            ):
+                self.deny(data, "unsupported_media_input")
             data["max_tokens"] = min(int(data.get("max_tokens") or 1024), 1024)
             # Buffer the complete answer so output checks finish before any
             # token reaches the browser. Request filters enforce this too.
             data["stream"] = False
             data.pop("stream_options", None)
+            media_count = 0
             for message in data.get("messages", []):
                 content = message.get("content", "")
                 parts = [{"text": content}] if isinstance(content, str) else content
-                for part in parts or []:
+                for index, part in enumerate(parts or []):
+                    if not isinstance(part, dict):
+                        self.deny(data, "unsupported_media_input")
                     if part.get("type", "text") != "text":
+                        media_count += 1
+                        if media_count > MAX_MEDIA_PARTS:
+                            self.deny(data, "media_count_limit")
+                        try:
+                            checked = await asyncio.to_thread(self.media.check, part)
+                        except MediaRejected as error:
+                            self.deny(data, str(error), media={"policy_version": MEDIA_POLICY_VERSION})
+                        parts[index] = checked.part
+                        self.record(
+                            data,
+                            checked.verdict,
+                            "allowed",
+                            media={
+                                "policy_version": MEDIA_POLICY_VERSION,
+                                "kind": checked.kind,
+                                "asr_revision": ASR_REVISION if checked.kind == "audio" else None,
+                                "redacted_kinds": list(checked.redacted_kinds),
+                            },
+                        )
                         continue
                     decision = await asyncio.to_thread(self.guardrails.check_input, part.get("text", ""))
                     if decision.blocked:
                         data["metadata"]["reference_blocked_role"] = message.get("role", "unknown")
                         self.deny(data, decision.verdicts[0])
-                    part["text"] = decision.text
+                    # Drop unrecognized keys: an apparent text part must not
+                    # carry an unchecked media payload alongside its text.
+                    parts[index] = {"type": "text", "text": decision.text}
                 if isinstance(content, str):
                     message["content"] = parts[0]["text"]
+                else:
+                    message["content"] = parts
+                for key in tuple(message):
+                    if key not in {"role", "content"}:
+                        del message[key]
             if self.decisions is not None:
                 now = time.monotonic()
                 self._decision_contexts = {

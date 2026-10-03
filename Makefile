@@ -1,4 +1,4 @@
-.PHONY: index test eval quality corpus-check decision-check decision-eval eval-presidio presidio-up gateway-up smoke-presidio test-presidio publication-check verify walkthrough verify-gateway report verify-telemetry verify-google-sso
+.PHONY: index test eval quality corpus-check decision-check decision-eval eval-presidio presidio-up gateway-up smoke-presidio test-presidio test-media publication-check verify walkthrough verify-gateway report verify-telemetry verify-google-sso
 
 PYTHON ?= python3
 COMPOSE = docker compose -f infra/docker-compose.yml
@@ -43,6 +43,10 @@ smoke-presidio:
 
 test-presidio:
 	PRESIDIO_INTEGRATION=1 $(PYTHON) -m unittest tests.test_guardrails -v
+
+# Actual local OCR/STT and Presidio. Public model download at build time only.
+test-media:
+	$(PYTHON) scripts/test_media_boundaries.py
 
 publication-check:
 	$(PYTHON) scripts/pre_publication_check.py

@@ -14,6 +14,7 @@ try:
     from reference_gateway import ReferencePolicy
     from secure_rag.decision_guardrails import DecisionUnavailable, Observation, digest
     from secure_rag.guardrails import Guardrails, PiiServiceError, RegexPiiRedactor
+    from secure_rag.media_guardrails import MediaRejected, MediaResult
 except ImportError:
     ReferencePolicy = None
 
@@ -28,7 +29,7 @@ class GatewayPolicyTests(unittest.IsolatedAsyncioTestCase):
         self.policy.pii = RegexPiiRedactor()
         self.policy.guardrails = Guardrails(pii=self.policy.pii)
         self.events = []
-        self.policy.record = lambda data, verdict, outcome: self.events.append((verdict, outcome))
+        self.policy.record = lambda data, verdict, outcome, **details: self.events.append((verdict, outcome))
         self.decision_events = []
         self.policy.record_decision = lambda data, event: self.decision_events.append(event)
 
@@ -158,6 +159,52 @@ class GatewayPolicyTests(unittest.IsolatedAsyncioTestCase):
         data["messages"].insert(0, {"role": "system", "content": "Answer only from authorized evidence."})
         result = await self.policy.async_pre_call_hook(None, None, data, "completion")
         self.assertEqual(result["messages"][0]["role"], "system")
+
+    async def test_media_inspection_cannot_be_disabled_by_client_flags(self):
+        class Unavailable:
+            def check(self, part):
+                raise MediaRejected("media_check_unavailable")
+
+        self.policy.media = Unavailable()
+        data = self.request()
+        data["messages"][0]["content"] = [
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,AA=="}}
+        ]
+        data["metadata"] = {"media_inspection": False, "bypass_media": True}
+        with self.assertRaises(HTTPException) as caught:
+            await self.policy.async_pre_call_hook(None, None, data, "completion")
+        self.assertEqual(caught.exception.detail["verdict"], "media_check_unavailable")
+
+    async def test_audio_is_replaced_before_inference(self):
+        class Inspector:
+            def check(self, part):
+                return MediaResult(
+                    {"type": "text", "text": "Contact [REDACTED_EMAIL]"},
+                    "audio",
+                    "audio_transcript_redacted",
+                    ("email",),
+                )
+
+        self.policy.media = Inspector()
+        data = self.request()
+        data["messages"][0]["content"] = [{"type": "input_audio", "input_audio": {"data": "private-audio"}}]
+        result = await self.policy.async_pre_call_hook(None, None, data, "completion")
+        self.assertNotIn("private-audio", str(result["messages"]))
+        self.assertNotIn("input_audio", str(result["messages"]))
+        self.assertIn(("audio_transcript_redacted", "allowed"), self.events)
+
+    async def test_media_cannot_hide_in_provider_extras_or_text_part_keys(self):
+        data = self.request()
+        data["extra_body"] = {"images": ["private pixels"]}
+        with self.assertRaises(HTTPException):
+            await self.policy.async_pre_call_hook(None, None, data, "completion")
+        data = self.request()
+        data["messages"][0]["content"] = [
+            {"type": "text", "text": "Public policy", "image_url": "private pixels"}
+        ]
+        data["messages"][0]["attachment"] = "private audio"
+        result = await self.policy.async_pre_call_hook(None, None, data, "completion")
+        self.assertNotIn("private", str(result["messages"]))
 
     async def test_missing_signed_identity_fails_before_inference(self):
         data = self.request()

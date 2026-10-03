@@ -5,6 +5,11 @@ the redacted user question, scoped and screened RAG passages, and the buffered, 
 It records observations only. A decision cannot grant document access, skip Presidio, approve a tool,
 or change an answer. The deterministic API remains independent of hosted inference.
 
+The mandatory [media boundary](media-guardrails.md) runs before optional decision observations.
+Jev and the Clef evaluation adapter do not receive image pixels or raw audio. Native decision
+state currently contains the text question and screened RAG passages; it does not add OCR/STT
+content to the signed query. Media privacy decisions remain local and mandatory.
+
 ## Providers checked on 2026-10-03
 
 | Candidate | Verified availability | Integration here |
