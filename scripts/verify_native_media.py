@@ -13,7 +13,7 @@ from pathlib import Path
 import requests
 
 
-def verify(fixtures, live, base):
+def verify(fixtures, live, base, russian=False):
     identities = json.loads(Path("/run/secrets/identity-enrollment").read_text())["users"]
     reader = next(identity for identity in identities if identity["scope"] == "reader")
     session = requests.Session()
@@ -39,6 +39,13 @@ def verify(fixtures, live, base):
             [
                 ("image-policy", "reference-vision", "policy.png", "allowed"),
                 ("audio-benign", "reference-multimodal", "benign.wav", "allowed"),
+            ]
+        )
+    if russian:
+        cases.extend(
+            [
+                ("image-russian-benign", "reference-vision", "russian-policy.png", "allowed"),
+                ("audio-russian-benign", "reference-multimodal", "russian-benign.wav", "allowed"),
             ]
         )
     results = []
@@ -124,11 +131,14 @@ if __name__ == "__main__":
         choices=("http://127.0.0.1:8080", "http://open-webui:8080"),
         default="http://127.0.0.1:8080",
     )
+    parser.add_argument(
+        "--russian", action="store_true", help="Requires accepted RU operator gate and local fixtures"
+    )
     args = parser.parse_args()
     if not args.live:
         parser.error("--live is required: accepted synthetic media incurs hosted model charges")
     try:
-        report = verify(args.fixtures, args.live, args.base_url)
+        report = verify(args.fixtures, args.live, args.base_url, args.russian)
         print(json.dumps(report, indent=2))
         raise SystemExit(0 if report["passed"] == report["total"] else 1)
     except (requests.RequestException, OSError, KeyError, ValueError):

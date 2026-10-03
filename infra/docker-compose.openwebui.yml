@@ -44,6 +44,8 @@ services:
 
   media-inspector:
     profiles: [openwebui]
+    environment:
+      REFERENCE_RU_MEDIA_ENABLED: "${REFERENCE_RU_MEDIA_ENABLED:-false}"
     build:
       context: ..
       dockerfile: apps/media-inspector/Dockerfile
