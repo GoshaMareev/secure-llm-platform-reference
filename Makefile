@@ -1,4 +1,4 @@
-.PHONY: index test eval eval-presidio presidio-up gateway-up smoke-presidio test-presidio publication-check verify walkthrough verify-gateway report verify-telemetry
+.PHONY: index test eval eval-presidio presidio-up gateway-up smoke-presidio test-presidio publication-check verify walkthrough verify-gateway report verify-telemetry verify-google-sso
 
 PYTHON ?= python3
 COMPOSE = docker compose -f infra/docker-compose.yml
@@ -43,9 +43,11 @@ verify-gateway:
 verify-telemetry:
 	$(PYTHON) scripts/verify_telemetry.py
 
+verify-google-sso:
+	$(PYTHON) scripts/verify_google_sso_config.py
+
 report: index
 	PYTHONPATH=".:apps/rag-assistant" $(PYTHON) evals/run.py --index .local/index.json --cases evals/cases.jsonl --compare --report docs/evaluation-report.md
 	$(PYTHON) scripts/walkthrough.py --report docs/walkthrough-report.md
 
 verify: test eval walkthrough publication-check
-

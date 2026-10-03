@@ -13,7 +13,7 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 - confidence-based grounded refusal and source attribution;
 - layered guardrails: direct-injection blocking, quarantine of poisoned retrieved documents, PII redaction in prompts and answers through shared [Presidio](https://github.com/data-privacy-stack/presidio) services used by both the API and the LiteLLM gateway, and system-prompt echo detection ([ADR 0004](docs/decisions/0004-layered-guardrails.md));
 - an explicit gateway boundary with a safe offline demo backend;
-- an OAuth2 Proxy front door for Microsoft Entra ID (OIDC) with optional group authorization;
+- an OAuth2 Proxy front door for Microsoft Entra ID (OIDC), plus a Google SSO local configuration;
 - operational logs that never contain prompts or answers;
 - a separate, opt-in prompt-audit stream with hashed actor identifiers;
 - an evaluation gate with adversarial and false-positive probe cases, measured with and without guardrails;
@@ -23,7 +23,7 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 
 ```mermaid
 flowchart LR
-    U[Enterprise user] --> AUTH[OAuth2 Proxy + Entra ID]
+    U[Enterprise user] --> AUTH[OAuth2 Proxy + Entra ID or Google]
     AUTH --> API[RAG assistant API]
     API --> R[Hybrid retrieval]
     R --> IDX[(Synthetic index)]
@@ -85,6 +85,12 @@ The analyzer image ships a large spaCy model; give Docker at least 4 GB of memor
 The default gateway is deterministic and offline. It makes the repository testable without downloading a model or sending data to a hosted API.
 
 ## Run the portfolio stack
+
+For ordinary Google accounts, follow the [Google SSO local walkthrough](docs/google-sso.md).
+It uses a separate Compose override, explicit login allowlist, private file-mounted
+credentials and an operator-owned policy keyed by stable Google IDs.
+The [local validation report](docs/google-sso-validation.md) records the completed
+two-account login and document access checks.
 
 ```bash
 cp .env.example .env

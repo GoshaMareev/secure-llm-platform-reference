@@ -46,6 +46,9 @@ jobs:
       - name: Validate Compose model
         run: docker compose -f infra/docker-compose.yml config --quiet
 
+      - name: Validate Google override and pinned OAuth2 Proxy
+        run: python scripts/verify_google_sso_config.py
+
       - name: Upload offline evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

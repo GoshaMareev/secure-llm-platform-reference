@@ -30,6 +30,7 @@ RULES = (
     Rule("slack-token", re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}")),
     Rule("openai-style-token", re.compile(r"sk-[A-Za-z0-9_-]{20,}")),
     Rule("google-api-key", re.compile(r"AIza[0-9A-Za-z_-]{20,}")),
+    Rule("google-oauth-secret", re.compile(r"GOCSPX-[0-9A-Za-z_-]{16,}")),
     Rule("authorization-header", re.compile(r"Authorization:\s*(?:Bearer|Basic)\s+\S+", re.IGNORECASE)),
     Rule(
         "credentialed-connection-string",

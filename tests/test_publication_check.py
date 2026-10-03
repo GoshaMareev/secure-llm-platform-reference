@@ -11,6 +11,12 @@ from pre_publication_check import scan_text  # noqa: E402
 
 
 class PublicationCheckTests(unittest.TestCase):
+    def test_detects_google_oauth_secret_without_echoing_value(self) -> None:
+        token = "GOCSPX-" + "a" * 28
+        problems = scan_text(ROOT / "README.md", f"credential={token}", ())
+        self.assertEqual(problems, ["README.md:1: matched google-oauth-secret"])
+        self.assertNotIn(token, problems[0])
+
     def test_detects_token_without_echoing_value(self) -> None:
         token = "ghp_" + "a" * 30
         problems = scan_text(ROOT / "README.md", f"credential={token}", ())
