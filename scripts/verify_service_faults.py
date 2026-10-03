@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import urlopen
 
 from verify_fault_load import ROOT, STATE, URL, call, fault, token
@@ -29,6 +30,8 @@ def health():
     try:
         with urlopen(URL + "/reference/health", timeout=3) as response:  # noqa: S310 - fixed local endpoint
             return json.load(response)
+    except HTTPError as error:
+        return json.loads(error.read(1024)) if error.code == 503 else {}
     except Exception:
         return {}
 
@@ -230,6 +233,64 @@ def run(report):
     return result.get("accepted", False)
 
 
+def storage_checks(report):
+    if (ROOT / ".local").resolve() not in report.resolve().parents or report.exists():
+        raise ValueError("Fresh private report required")
+    fault()
+    checks = []
+    for kind, filename in (
+        ("operational", "/var/log/reference/runtime/gateway.runtime.jsonl"),
+        ("audit", "/var/log/reference/audit/gateway.audit.jsonl"),
+    ):
+        docker(
+            "exec",
+            PREFIX + "litellm-1",
+            "python",
+            "-c",
+            "from pathlib import Path;Path(" + repr(filename) + ").chmod(0o400)",
+        )
+        try:
+            row = call()
+            degraded = health().get("status")
+            checks.append(
+                {
+                    "check": kind + " disk write permission failure",
+                    "status": row["status"],
+                    "code": row["code"],
+                    "health": degraded,
+                    "passed": (
+                        row["status"] == 200
+                        if kind == "operational"
+                        else row["status"] >= 400 and not row["has_answer"]
+                    )
+                    and degraded == "degraded",
+                }
+            )
+        finally:
+            docker(
+                "exec",
+                PREFIX + "litellm-1",
+                "python",
+                "-c",
+                "from pathlib import Path;Path(" + repr(filename) + ").chmod(0o600)",
+            )
+            docker("restart", PREFIX + "litellm-1")
+            if not ready():
+                raise RuntimeError("Storage fault recovery failed")
+    result = {
+        "source_commit": docker_version(),
+        "checks": checks,
+        "accepted": all(c["passed"] for c in checks),
+        "scope": (
+            "Permission failures on actual disk files; quota exhaustion in separate service suite; "
+            "ENOSPC/fsync failure unit injection."
+        ),
+    }
+    report.write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps(result))
+    return result["accepted"]
+
+
 def docker_version():
     return subprocess.check_output([shutil.which("git"), "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()  # noqa: S603
 
@@ -237,5 +298,7 @@ def docker_version():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--storage-only", action="store_true")
     args = parser.parse_args()
-    raise SystemExit(0 if run(args.report) else 1)
+    accepted = storage_checks(args.report) if args.storage_only else run(args.report)
+    raise SystemExit(0 if accepted else 1)

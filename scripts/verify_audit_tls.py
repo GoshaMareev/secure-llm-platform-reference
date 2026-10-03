@@ -53,7 +53,7 @@ except urllib.error.HTTPError: reason='http_error_not_tls_proof'
 except urllib.error.URLError as e:
     reason=getattr(e.reason,'reason','transport_error_not_tls_proof')
     wrong=(isinstance(e.reason,ssl.SSLError)
-           and reason in {'TLSV1_ALERT_UNKNOWN_CA','SSLV3_ALERT_BAD_CERTIFICATE','TLSV1_ALERT_BAD_CERTIFICATE'})
+        and reason in {'TLSV1_ALERT_UNKNOWN_CA','SSLV3_ALERT_BAD_CERTIFICATE','TLSV1_ALERT_BAD_CERTIFICATE'})
 except ssl.SSLError as e:
     reason=e.reason
     wrong=reason in {'TLSV1_ALERT_UNKNOWN_CA','SSLV3_ALERT_BAD_CERTIFICATE','TLSV1_ALERT_BAD_CERTIFICATE'}
