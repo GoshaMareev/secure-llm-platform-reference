@@ -12,7 +12,7 @@ fragments remain in `.local`; these public reports contain measurements and caus
 | Native original core, repetition 1 | 32/32 | [report](native-core-r1-4aa3909.json) |
 | Native original core, repetition 2 | 32/32 | [report](native-core-r2-4aa3909.json) |
 | Native original core, repetition 3 | 32/32 | [report](native-core-r3-4aa3909.json) |
-| Offline original core | 32/32, no prior-success regressions | [report](offline-core-4aa3909.json) |
+| Offline original core | 32/32, no prior-success regressions | [final report](offline-core-2421193.json) |
 | Native expanded | 125/128 = 97.66% | [report](native-expanded-4aa3909.json) |
 | Development / holdout | 63/64 / 30/32 = 93.75% holdout | [report](native-expanded-4aa3909.json) |
 | Native access/policy/media boundaries | 28/28 access/policy; 6/6 original media API | [ACL](native-acl-63f1b26.json), [media](native-media-4aa3909.json) |
@@ -56,3 +56,18 @@ snapshot retained. [Lifecycle evidence](corpus-lifecycle-1b03896.json) covers in
 upload, retry, idempotent bootstrap, byte-hash rejection, stale model denial and rollback.
 Activation consists of several upstream API calls and fails closed on inconsistent state;
 it is not a transactional multi-model database operation.
+
+Final independent API extractor revision is `24211939c4b3bf56275629c5d7f5ba51845e66c7`.
+CI at375c2a7 exposed eight regex/nine Presidio legacy-suite regressions from counting
+grammatical action words and masked contact noise as unsupported facts. Exact grammar words
+and already-masked declarative/recipient normalization restore the original gates; factual
+question clauses and unknown specific nouns remain checked. [API regression evidence](api-regression-final.json)
+is42/43 with actual Presidio,39/40 with regex, retaining the sole previously documented
+`benign-system-word` limitation. Original quality core remains32/32 with no regressions.
+The native prompt/retrieval/gateway/media/audit runtime and frozen suites are unchanged by this fix;
+prior native observations retain their actual4aa3909 source. No holdout-based change was made.
+
+Supplemental review rejected the first masked-prefix normalizer because it could discard
+a factual imperative beside a mask. Revision2421193 limits removal to complete recognized
+contact/card introduction grammar; EN/RU budget imperatives remain refusal regressions.
+The [rejected candidate observation](trials/api-regression-07754aa.json) is retained.

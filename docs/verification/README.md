@@ -17,11 +17,11 @@ without paid-provider keys. Hosted runs use separate budget-controlled operator 
 | Audit | Durable local spool; private mTLS recovery, replay deduplication | [Delivery evidence](audit-results.md) |
 | Supply chain | Syft1.54.0 app/site/11-image inventories plus models/OCR | [License notices](third-party-notices.md), [SBOM index](sbom-4aa3909/index.json) |
 | Security | Immutable foundation scan + supplemental reviews and disposition | [Review scope](security-review.md) |
-| Checks | Offline, frozen suites, configuration, pinned runtime/media regressions | [Verification summary](checks-final.json) |
+| Checks | Offline, frozen suites, configuration, pinned runtime/media regressions | [Verification summary](checks-2421193.json) |
 
 Text runtime: `4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e`. Final media runtime:
-`a62acc4ebe24448db72b4eaa60f4f1e5a03c5a88` (`local-media-4`). Later commits adjust operator
-verification/reporting only. Corpus1.1.0 manifest:
+`a62acc4ebe24448db72b4eaa60f4f1e5a03c5a88` (`local-media-4`). Independent extractive API final revision is `24211939c4b3bf56275629c5d7f5ba51845e66c7`;
+other subsequent commits adjust verification/reporting. Corpus1.1.0 manifest:
 `3db86a97a0d539ac8d71457debe5ab0d463d29fcf36ee1e9261f53acd41a1873`.
 Measurements from `1b03896` are separately labelled and retained; no historical report or
 baseline is replaced to achieve acceptance. [Rejected trials](trials/) remain available.

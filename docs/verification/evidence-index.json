@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "code_checkout_commit": "2e48da023028a71bb29f9695b8a2b0989ce54bf9",
+  "code_checkout_commit": "24211939c4b3bf56275629c5d7f5ba51845e66c7",
   "text_runtime_commit": "4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e",
   "media_runtime_commit": "a62acc4ebe24448db72b4eaa60f4f1e5a03c5a88",
   "corpus": {
@@ -15,7 +15,7 @@
     "audit": "native-v2",
     "semantic_mode": "shadow"
   },
-  "binding_note": "Reports preserve their actual source/harness fields; this inventory does not relabel old measurements as the final checkout. Text runtime is unchanged after4aa3909; media hardening is a62acc4. Supplemental commits are verification-only. The delivery revision is the Git commit containing this index. SHA values omit this self-referential index.",
+  "binding_note": "Reports retain their measured source versions. Native text runtime4aa3909 and media runtimea62acc4 are unchanged. Independent extractive API2421193 restores legacy CI and closes imperative-clause removal without changing frozen datasets or corpus. Delivery revision is the commit containing this inventory; self-referential index omitted.",
   "runtime_configuration_sha256": {
     "gateway/reference_capacity.py": "c7c5123ef2f117ade291838370a1058500bbdcd3e3291bf284441004c0251622",
     "gateway/reference_gateway.py": "13e4c4d1c50560ac10eea33079732098e51b2a39f21dea283fc1bbe1bb024b75",
@@ -31,13 +31,19 @@
     "evals/decision-expanded-v2.json": "bae22d4a474ddf8c085ace349d39b5d8be7256f9a2facc8902c907bb26f5ddc6",
     "infra/docker-compose.verification.yml": "c8701784fd3985e3906ab281935296dfd1a26d3e07a4bc883b6157fa5451f952",
     "infra/docker-compose.audit.yml": "b8bd8afbfdaef55ec8f0d972f956fba9c45d05f4f6975093bb3f43bd0224d129",
-    "infra/docker-compose.openwebui.yml": "42e10182eeaae8c4c260c83af1d90b596176020aa5636bd787835392cc3dca2b"
+    "infra/docker-compose.openwebui.yml": "42e10182eeaae8c4c260c83af1d90b596176020aa5636bd787835392cc3dca2b",
+    "apps/rag-assistant/secure_rag/gateway.py": "6dc32aa3a831203bb87bb0d2056ee408302aa72c81376cd1795228f7c670bdb9"
   },
   "files": [
     {
       "file": "README.md",
-      "sha256": "49d4034f1eded46d9023be397c67805c9199f571507a120803696f4143b0f893",
-      "bytes": 2808
+      "sha256": "bf464131c9817b5c9532fd62d30db701e5ab5174085ba7a28687d0cecee41913",
+      "bytes": 2896
+    },
+    {
+      "file": "api-regression-final.json",
+      "sha256": "4312ca7fd4773673f6f96b7f0b3f8c89bb4461e8dc3b96de97df2c50875cd5b3",
+      "bytes": 1548
     },
     {
       "file": "audit-delivery-final.json",
@@ -85,6 +91,11 @@
       "bytes": 1008
     },
     {
+      "file": "checks-2421193.json",
+      "sha256": "da0fed2d55c71bffa5debf1bbfcdeb94561eef0a004cb0d2a764f7d7eedbfc0c",
+      "bytes": 1030
+    },
+    {
       "file": "checks-final.json",
       "sha256": "ac29e43ae9fe42aedc9b63b05ec05a82ca922e56b44581223257b5a3871b6986",
       "bytes": 988
@@ -126,8 +137,8 @@
     },
     {
       "file": "implementation-status.md",
-      "sha256": "cea49c19be11365f6b308aadce9187a593ac5edd2fb6e5967d2cad50d69caf1c",
-      "bytes": 2703
+      "sha256": "5597d4af7f9abbf44a06be777e63ed725b1029dc7fe7f433cc1f57cb9ab1ebd7",
+      "bytes": 2990
     },
     {
       "file": "jev-results.md",
@@ -275,6 +286,16 @@
       "bytes": 1769
     },
     {
+      "file": "offline-core-07754aa.json",
+      "sha256": "a213a49f47e136fddf764baa93d93089bbcf475d649052e3375ca19f6c68481f",
+      "bytes": 21183
+    },
+    {
+      "file": "offline-core-07754aa.md",
+      "sha256": "dc3e2686254040370a0f78be85bc7ec89c211d2def8cfb29ab1442e96263cbdd",
+      "bytes": 3121
+    },
+    {
       "file": "offline-core-1.1.0.json",
       "sha256": "5cc9dafa72975553ad5f2ad7dc6b4758393fef07643e4e5a9ea4528dd3c71e70",
       "bytes": 21183
@@ -295,6 +316,16 @@
       "bytes": 3121
     },
     {
+      "file": "offline-core-2421193.json",
+      "sha256": "9045b0c1fe764e8a04048a01b692169ff823923ccb16faa90b923c9fe6afa3a5",
+      "bytes": 21183
+    },
+    {
+      "file": "offline-core-2421193.md",
+      "sha256": "dc3e2686254040370a0f78be85bc7ec89c211d2def8cfb29ab1442e96263cbdd",
+      "bytes": 3121
+    },
+    {
       "file": "offline-core-4aa3909.json",
       "sha256": "756b3d7c8e1164d5ee7ef0a2049df4923599ffd23ca7e94026050ed89fac6c84",
       "bytes": 21183
@@ -306,8 +337,8 @@
     },
     {
       "file": "quality-results.md",
-      "sha256": "016d2d639a1451b9c05cd8018f2add8f611b8ee2d0a8d6db056a33d6083eb93f",
-      "bytes": 4137
+      "sha256": "2de81f28c74b71122436fb574f1c9285abaaeb0bf8b96075d70a23c73dcec682",
+      "bytes": 5341
     },
     {
       "file": "sbom/application.json",
@@ -436,8 +467,8 @@
     },
     {
       "file": "security-review.md",
-      "sha256": "9a797992b23d4341173d67ebb9020be8315244d07340995517aa274d6c723e34",
-      "bytes": 2958
+      "sha256": "660934b7ad07065da409f706be8832286e868dadc803710d7360b16752e70b69",
+      "bytes": 3426
     },
     {
       "file": "service-faults-4aa3909.json",
@@ -453,6 +484,11 @@
       "file": "third-party-notices.md",
       "sha256": "ffb0a2aa754318ffcbce052690e1c57a6451fe21bf0d6e163edc6ece96642186",
       "bytes": 3706
+    },
+    {
+      "file": "trials/api-regression-07754aa.json",
+      "sha256": "263fbb8573a9af58f8c012ecd70d4fcc1111486b51cdff52d8703d6a5c6d40b6",
+      "bytes": 1753
     },
     {
       "file": "trials/audit-delivery-1b03896.json",
@@ -484,5 +520,6 @@
       "sha256": "151d92266e3dd9885b0f3d0e1a1174239493a1f2e02fd11ca8ff60d51ee70dff",
       "bytes": 34300
     }
-  ]
+  ],
+  "offline_runtime_commit": "24211939c4b3bf56275629c5d7f5ba51845e66c7"
 }

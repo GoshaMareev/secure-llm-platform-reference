@@ -38,3 +38,9 @@ not actual host-disk exhaustion, language recall or WebSocket/Stop-action verifi
 The sole operator probe in `5ddb270..2e48da0` was also reviewed: private paths, fixed loopback
 route, bounded WAV, metadata-only output and scoped assertions; no actionable finding.
 The public capacity report adds the retained WAV hash.
+
+Final API extractor review `375c2a7..07754aa` identified a partial-answer hole: generic
+masked-prefix removal could omit substantive imperatives. Closure was confirmed across both
+files in `07754aa..2421193`: complete recognized contact/card grammar only, with EN/RU budget
+refusal regressions. No scope/PII bypass or new actionable issue was found. This change affects
+the independent extractive API only; native/media/audit measurements keep their original source.

@@ -1,0 +1,46 @@
+{
+  "source_commit": "24211939c4b3bf56275629c5d7f5ba51845e66c7",
+  "runtime_commits": {
+    "text": "4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e",
+    "media": "a62acc4ebe24448db72b4eaa60f4f1e5a03c5a88"
+  },
+  "offline_unittest": {
+    "ran": 159,
+    "skipped": 26,
+    "passed": true,
+    "note": "Optional host imports absent; real/pinned paths separately exercised."
+  },
+  "pinned_gateway_tests": {
+    "ran": 18,
+    "passed": true
+  },
+  "pinned_webui_tests": {
+    "ran": 6,
+    "passed": true
+  },
+  "actual_local_ocr_stt_pii_boundaries": {
+    "ran": 18,
+    "passed": true
+  },
+  "frozen_suites": {
+    "passed": true
+  },
+  "compose_boundaries": {
+    "passed": true
+  },
+  "native_prometheus_targets": [
+    {
+      "job": "native-gateway",
+      "health": "up"
+    },
+    {
+      "job": "native-webui",
+      "health": "up"
+    }
+  ],
+  "scope": "Metadata-only execution summary; CI at the delivery commit is separately linked from GitHub.",
+  "independent_api_walkthrough": {
+    "checks": 5,
+    "passed": true
+  }
+}

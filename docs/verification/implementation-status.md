@@ -24,3 +24,7 @@ The public video replays verified synthetic observations and is not a live sessi
 
 Excluded scope remains public interactive backend, real clients, enterprise Entra/SIEM,
 faces/biometrics, arbitrary media privacy, on-prem inference sizing and privileged history tampering.
+
+A final CI run caught legacy API extraction regressions beyond the32-case quality suite.
+Revision2421193 restores all unwaived cases; actual Presidio42/43 retains the original benign
+quality limitation. Offline core remains32/32. Native/media/audit controls and datasets are unchanged.
