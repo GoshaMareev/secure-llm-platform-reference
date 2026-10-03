@@ -15,6 +15,7 @@ from secure_rag.retrieval import Retriever, load_glossary  # noqa: E402
 from secure_rag.service import RAGService  # noqa: E402
 
 from ingestion.build_index import build  # noqa: E402
+from ingestion.corpus import release  # noqa: E402
 from ingestion.store import write_index  # noqa: E402
 
 
@@ -22,7 +23,12 @@ class RetrievalTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.index_path = Path(self.temporary.name) / "index.json"
-        write_index(self.index_path, build(ROOT / "sample-data"), source_label="sample-data")
+        write_index(
+            self.index_path,
+            build(ROOT / "sample-data"),
+            source_label="sample-data",
+            corpus=release(ROOT / "sample-data"),
+        )
         glossary = load_glossary(ROOT / "sample-data" / "glossary.json")
         self.retriever = Retriever(self.index_path, glossary=glossary)
 

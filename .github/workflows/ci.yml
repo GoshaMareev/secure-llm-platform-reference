@@ -37,10 +37,15 @@ jobs:
       - name: Run offline tests
         run: python -m unittest discover -s tests -v
 
+      - name: Validate synthetic decision fixtures without inference
+        run: PYTHONPATH=".:apps/rag-assistant" python -m evals.decisions --validate-only
+
       - name: Build synthetic index and run evaluations
         run: |
+          python -m ingestion.corpus --source sample-data
           python -m ingestion.build_index --source sample-data --output .local/index.json
           PYTHONPATH=".:apps/rag-assistant" python evals/run.py --index .local/index.json --cases evals/cases.jsonl --compare --quiet --report .local/evaluation-report.md
+          PYTHONPATH=".:apps/rag-assistant" python -m evals.quality --index .local/index.json --baseline evals/quality-baseline.json --report .local/quality-offline.json
           python scripts/walkthrough.py --report .local/walkthrough-report.md
 
       - name: Check publication safety
@@ -63,6 +68,9 @@ jobs:
           path: |
             .local/evaluation-report.md
             .local/walkthrough-report.md
+            .local/quality-offline.json
+            .local/quality-offline.md
+            sample-data/releases/*.json
 
   native-boundaries:
     runs-on: ubuntu-latest

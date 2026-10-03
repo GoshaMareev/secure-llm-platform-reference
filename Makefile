@@ -1,4 +1,4 @@
-.PHONY: index test eval eval-presidio presidio-up gateway-up smoke-presidio test-presidio publication-check verify walkthrough verify-gateway report verify-telemetry verify-google-sso
+.PHONY: index test eval quality corpus-check decision-check decision-eval eval-presidio presidio-up gateway-up smoke-presidio test-presidio publication-check verify walkthrough verify-gateway report verify-telemetry verify-google-sso
 
 PYTHON ?= python3
 COMPOSE = docker compose -f infra/docker-compose.yml
@@ -8,6 +8,19 @@ index:
 
 test:
 	$(PYTHON) -m unittest discover -s tests -v
+
+corpus-check:
+	$(PYTHON) -m ingestion.corpus --source sample-data
+
+quality: index
+	PYTHONPATH=".:apps/rag-assistant" $(PYTHON) -m evals.quality --index .local/index.json \
+		--baseline evals/quality-baseline.json --report .local/quality-offline.json
+
+decision-check:
+	PYTHONPATH=".:apps/rag-assistant" $(PYTHON) -m evals.decisions --validate-only
+
+decision-eval:
+	PYTHONPATH=".:apps/rag-assistant" $(PYTHON) -m evals.decisions --live
 
 eval: index
 	PYTHONPATH=".:apps/rag-assistant" $(PYTHON) evals/run.py --index .local/index.json --cases evals/cases.jsonl \
@@ -50,4 +63,4 @@ report: index
 	PYTHONPATH=".:apps/rag-assistant" $(PYTHON) evals/run.py --index .local/index.json --cases evals/cases.jsonl --compare --report docs/evaluation-report.md
 	$(PYTHON) scripts/walkthrough.py --report docs/walkthrough-report.md
 
-verify: test eval walkthrough publication-check
+verify: corpus-check decision-check test eval quality walkthrough publication-check

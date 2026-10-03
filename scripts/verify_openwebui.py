@@ -61,9 +61,12 @@ def verify(live):
         scope = identity["scope"]
         sessions[scope], users[scope] = signin(identity["email"])
         checks.check(scope + " is a regular user", users[scope]["role"] == "user")
-        expected = {"General", "Engineering"} if scope == "engineer" else {"General"}
+        expected = {
+            manifest["knowledge"][name]
+            for name in (("General", "Engineering") if scope == "engineer" else ("General",))
+        }
         response = sessions[scope].get(BASE + "/api/v1/knowledge/", timeout=30)
-        checks.check(scope + " Knowledge scope", {i["name"] for i in response.json()["items"]} == expected)
+        checks.check(scope + " Knowledge scope", {i["id"] for i in response.json()["items"]} == expected)
         response = sessions[scope].get(BASE + "/api/models?refresh=true", timeout=30)
         ids = {i["id"] for i in response.json()["data"]}
         checks.check(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import time
 import uuid
 from datetime import UTC, datetime
@@ -10,6 +11,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field, field_validator
+
+from ingestion.corpus import release
 
 from .audit import AuditWriter, OperationalEvent, OperationalLogger
 from .authorization import IdentityPolicy
@@ -48,6 +51,9 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     request_id: str
+    corpus_id: str
+    corpus_version: str
+    manifest_sha256: str
     answer: str
     confidence: float
     refused: bool
@@ -69,6 +75,13 @@ def build_app(settings: Settings | None = None) -> FastAPI:
     policy = IdentityPolicy(config.identity_policy_path)
     glossary = load_glossary(Path("sample-data/glossary.json"))
     retriever = Retriever(config.index_path, glossary=glossary)
+    if retriever.corpus != release(Path("sample-data")):
+        raise ValueError("Index targets different corpus; rebuild it before starting the API")
+    if (
+        hashlib.sha256(config.identity_policy_path.read_bytes()).hexdigest()
+        != (retriever.corpus["auxiliary_sha256"]["identity-policy.json"])
+    ):
+        raise ValueError("Identity policy differs from the indexed corpus release")
     if config.gateway_mode == "demo":
         gateway = DemoGateway(glossary)
     elif config.gateway_mode == "openai-compatible":
@@ -92,6 +105,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
             Guardrails(pii=build_pii_redactor(config.pii_backend)) if config.guardrails_enabled else None
         ),
     )
+    provenance = {key: retriever.corpus[key] for key in ("corpus_id", "corpus_version", "manifest_sha256")}
     operations = OperationalLogger(config.runtime_log_path)
     audit = AuditWriter(
         config.audit_log_path,
@@ -178,7 +192,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/readyz")
     def ready() -> dict[str, str]:
-        return {"status": "ready", "index": config.index_path.name}
+        return {"status": "ready", "index": config.index_path.name, **provenance}
 
     @app.get("/metrics")
     def metrics() -> Response:
@@ -218,11 +232,13 @@ def build_app(settings: Settings | None = None) -> FastAPI:
                 source_ids=[item["source_id"] for item in answer.citations],
                 refused=answer.refused,
                 policy_verdicts=verdicts,
+                corpus=provenance,
             )
             audit_written = True
             REQUESTS.labels(status="success", refused=str(answer.refused).lower()).inc()
             return AskResponse(
                 request_id=request_id,
+                **provenance,
                 answer=answer.text,
                 confidence=round(answer.confidence, 4),
                 refused=answer.refused,
@@ -253,6 +269,7 @@ def build_app(settings: Settings | None = None) -> FastAPI:
                         source_ids=[],
                         refused=True,
                         policy_verdicts=verdicts,
+                        corpus=provenance,
                     )
                 except Exception:
                     REQUESTS.labels(status="audit_error", refused="true").inc()

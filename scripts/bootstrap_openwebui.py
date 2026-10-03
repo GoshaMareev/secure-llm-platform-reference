@@ -5,12 +5,15 @@ identity enrollment file, never a client-supplied email/role declaration.
 """
 
 import argparse
+import hashlib
 import json
 import secrets
 import sys
 from pathlib import Path
 
 import requests
+
+from ingestion.corpus import contained_file, release
 
 BASE = "http://127.0.0.1:8080"
 ADMIN = "reference-operator@example.test"
@@ -39,7 +42,35 @@ class Operator:
         return result.json()
 
 
+SOURCE = Path("/reference/sample-data")
+MANIFEST = Path("/app/backend/data/reference-manifest.json")
+
+
+def verify_corpus(operator, manifest, corpus):
+    """Check native inventory and actual stored bytes, not just filenames/metadata."""
+    if manifest.get("corpus") != corpus:
+        raise ValueError("Native Knowledge targets a different corpus release; provision it first")
+    if set(manifest.get("files", {})) != {d["id"] for d in corpus["documents"]}:
+        raise ValueError("Native corpus document inventory differs")
+    for scope, kb_id in manifest["knowledge"].items():
+        expected = {
+            manifest["files"][d["id"]]["file_id"]
+            for d in corpus["documents"]
+            if ("General" if d["metadata"]["audience"] == "all" else "Engineering") == scope
+        }
+        files = operator.call("GET", f"/api/v1/knowledge/{kb_id}/files?limit=100")["items"]
+        if {f["id"] for f in files} != expected:
+            raise ValueError("Native Knowledge file inventory differs from release")
+    for document in corpus["documents"]:
+        file_id = manifest["files"][document["id"]]["file_id"]
+        response = operator.session.get(BASE + f"/api/v1/files/{file_id}/content", timeout=30)
+        if response.status_code != 200 or hashlib.sha256(response.content).hexdigest() != document["sha256"]:
+            raise ValueError("Native Knowledge stored content differs from release")
+
+
 def provision(identities: Path):
+    corpus = release(SOURCE)
+    previous = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else None
     users = json.loads(identities.read_text())["users"]
     if sorted(item["scope"] for item in users) != ["engineer", "reader"]:
         raise ValueError("Expected exactly one explicitly enrolled engineer and reader")
@@ -111,12 +142,17 @@ def provision(identities: Path):
     kb_ids = {}
     for name in ("General", "Engineering"):
         grants = [{"principal_type": "group", "principal_id": groups[name], "permission": "read"}]
-        kb = next((k for k in knowledge if k["name"] == name), None)
+        release_name = f"{name} · {corpus['corpus_version']} · {corpus['manifest_sha256'][:12]}"
+        kb = next((k for k in knowledge if k["name"] == release_name), None)
         if not kb:
             kb = operator.call(
                 "POST",
                 "/api/v1/knowledge/create",
-                json={"name": name, "description": "Synthetic portfolio corpus", "access_grants": grants},
+                json={
+                    "name": release_name,
+                    "description": "Immutable synthetic corpus release",
+                    "access_grants": grants,
+                },
             )
         else:
             operator.call(
@@ -124,24 +160,36 @@ def provision(identities: Path):
             )
         kb_ids[name] = kb["id"]
 
-    catalog = json.loads(Path("/reference/sample-data/catalog.json").read_text())
-    for document in catalog["documents"]:
+    file_manifest = {}
+    for document in corpus["documents"]:
         name = "General" if document["metadata"]["audience"] == "all" else "Engineering"
         filename = Path(document["path"]).name
         kb_id = kb_ids[name]
-        files = operator.call("GET", f"/api/v1/knowledge/{kb_id}/files")["items"]
-        if any(f["filename"] == filename for f in files):
-            continue
-        with Path("/reference/sample-data", document["path"]).open("rb") as handle:
-            file = operator.call(
-                "POST",
-                "/api/v1/files/?process_in_background=false",
-                files={"file": (filename, handle, "text/markdown")},
-            )
-        operator.call("POST", f"/api/v1/knowledge/{kb_id}/file/add", json={"file_id": file["id"]})
-    # Keep an operator-only manifest for reproducible access checks.
-    manifest = {"users": enrolled, "groups": groups, "knowledge": kb_ids}
-    Path("/app/backend/data/reference-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        files = operator.call("GET", f"/api/v1/knowledge/{kb_id}/files?limit=100")["items"]
+        file = next((f for f in files if f["filename"] == filename), None)
+        if file is None:
+            with contained_file(SOURCE.resolve(), document["path"]).open("rb") as handle:
+                file = operator.call(
+                    "POST",
+                    "/api/v1/files/?process_in_background=false",
+                    files={"file": (filename, handle, "text/markdown")},
+                )
+            operator.call("POST", f"/api/v1/knowledge/{kb_id}/file/add", json={"file_id": file["id"]})
+        file_manifest[document["id"]] = {
+            "file_id": file["id"],
+            "knowledge_id": kb_id,
+            "sha256": document["sha256"],
+        }
+    manifest = {
+        "users": enrolled,
+        "groups": groups,
+        "knowledge": kb_ids,
+        "corpus": corpus,
+        "files": file_manifest,
+    }
+    verify_corpus(operator, manifest, corpus)
+    if release(SOURCE) != corpus:
+        raise ValueError("Corpus changed while provisioning")
     existing_models = operator.call("GET", "/api/v1/models/all")
     for alias, name, vision in (
         ("reference-chat", "Gemini 2.5 Flash · chat", False),
@@ -184,6 +232,8 @@ def provision(identities: Path):
             },
             "meta": {
                 "reference_grounded": True,
+                "reference_corpus_version": corpus["corpus_version"],
+                "reference_manifest_sha256": corpus["manifest_sha256"],
                 "description": "Synthetic reference corpus; native Knowledge retrieval with policy checks.",
                 "knowledge": [{"id": kb_ids[n], "name": n, "type": "collection"} for n in collection_names],
                 "capabilities": {"vision": False, "file_context": True},
@@ -198,6 +248,16 @@ def provision(identities: Path):
             else "/api/v1/models/create"
         )
         operator.call("POST", path, json=definition)
+    # Only retire the previously managed release, after new content was verified.
+    # Keep its bytes for rollback; clear user grants so stale collections cannot
+    # be selected alongside the active version.
+    if previous:
+        for kb_id in previous["knowledge"].values():
+            if kb_id not in kb_ids.values():
+                operator.call("POST", f"/api/v1/knowledge/{kb_id}/access/update", json={"access_grants": []})
+    temporary = MANIFEST.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(manifest, indent=2) + "\n")
+    temporary.replace(MANIFEST)
     print("Native groups, Knowledge collections and mandatory RAG filter provisioned.")
 
 

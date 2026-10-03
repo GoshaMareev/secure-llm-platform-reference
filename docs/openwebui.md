@@ -125,3 +125,16 @@ suite uses operator-controlled identity enrollment; it does not simulate Google
 login. Real browser checks and observed hosted calls are recorded separately in
 [full-stack validation](full-stack-validation.md). The deterministic API
 [evaluation](evaluation-report.md) retains its own results and limitations.
+
+
+## Corpus releases and answer quality
+
+The optional [decision-model layer](decision-guardrails.md) observes text input, authorized passages and
+buffered output inside LiteLLM. It uses the existing OpenRouter credential, records typed scores with corpus
+and policy fingerprints, and runs in `shadow` mode. Existing ACL, pattern and Presidio checks remain mandatory.
+
+Bootstrap activates the versioned synthetic text corpus after checking stored document bytes and collection
+inventory. Models carry the active version/digest; the mandatory filter rejects stale release definitions.
+See [corpus versioning](corpus-versioning.md) for update/rollback instructions and the nontransactional
+activation boundary. Run the shared [quality benchmark](rag-quality.md) to measure paraphrases, citations,
+reference facts and refusals through native Knowledge with the enrolled scopes.

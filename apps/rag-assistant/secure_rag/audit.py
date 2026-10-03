@@ -63,6 +63,7 @@ class AuditWriter:
         source_ids: list[str],
         refused: bool,
         policy_verdicts: tuple[str, ...] = (),
+        corpus: dict[str, str] | None = None,
     ) -> None:
         event: dict[str, Any] = {
             "schema_version": 1,
@@ -76,6 +77,8 @@ class AuditWriter:
             "refused": refused,
             "policy_verdicts": list(policy_verdicts),
         }
+        if corpus is not None:
+            event["corpus"] = {key: corpus[key] for key in ("corpus_id", "corpus_version", "manifest_sha256")}
         if self._include_prompt:
             event["prompt"] = question
         _append_json(self._path, event)

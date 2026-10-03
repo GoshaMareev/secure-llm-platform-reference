@@ -22,6 +22,10 @@ A clean-room, runnable portfolio project showing how I design the controls betwe
 - operational logs that never contain prompts or answers;
 - a separate, opt-in prompt-audit stream with hashed actor identifiers;
 - an evaluation gate with adversarial and false-positive probe cases, measured with and without guardrails;
+- a [32-case RAG quality benchmark](docs/rag-quality.md) shared by offline retrieval and native Knowledge;
+- optional [semantic guardrail observations](docs/decision-guardrails.md) with Jev via OpenRouter, and a
+  text-only evaluation adapter for Cloudflare Clef/Clef-flash;
+- [immutable corpus release manifests](docs/corpus-versioning.md), versioned native collections and stale-index checks;
 - least-privilege container defaults and isolated observability volumes.
 
 ## Architecture
@@ -225,8 +229,8 @@ tests/                    offline unit tests
 - replace the synthetic server-owned subject policy with deployment-specific Entra claim mapping;
 - validate ingress provenance against the real proxy; extend audit rotation/durability and gateway outage tests;
 - generate an SBOM and dependency-license report, then repeat the security review against the hardened revision;
-- benchmark native semantic retrieval/reranking across paraphrases and version the corpus; keep the API control reference's known evaluation limitations explicit;
-- put a trained prompt-injection classifier behind the `Guardrails` interface and compare it on the same cases;
+- extend the versioned RAG quality benchmark to a larger domain dataset and additional corpus releases;
+- calibrate the semantic shadow layer on representative/adversarial data and compare Clef before enabling blocking;
 - validate production inference quality separately from synthetic gateway/control checks.
 
 ## Scope and limitations

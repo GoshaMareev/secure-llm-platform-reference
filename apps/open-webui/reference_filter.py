@@ -11,9 +11,11 @@ import json
 import os
 import time
 import uuid
+from pathlib import Path
 
 import jwt
 from fastapi import HTTPException
+from secure_rag.decision_guardrails import digest, messages_digest
 from secure_rag.guardrails import (
     CONTEXT_ONLY_RULES,
     EXFILTRATION_RULES,
@@ -23,6 +25,8 @@ from secure_rag.guardrails import (
     _matches,
 )
 from secure_rag.presidio_pii import PresidioHttpRedactor
+
+from ingestion.corpus import release
 
 
 class Filter:
@@ -40,6 +44,17 @@ class Filter:
         meta = (__model__.get("info") or {}).get("meta") or {}
         grounded = bool(meta.get("reference_grounded"))
         if grounded:
+            try:
+                corpus = await asyncio.to_thread(release, Path("/reference/sample-data"))
+            except (OSError, ValueError, KeyError):
+                self.deny(__user__, request_id, "corpus_release_unavailable")
+            if (
+                meta.get("reference_manifest_sha256") != corpus["manifest_sha256"]
+                or meta.get("reference_corpus_version") != corpus["corpus_version"]
+            ):
+                self.deny(__user__, request_id, "corpus_version_mismatch")
+            __metadata__["reference_corpus_version"] = corpus["corpus_version"]
+            __metadata__["reference_manifest_sha256"] = corpus["manifest_sha256"]
             # The operator's model fixes the collection scope and retrieval
             # mode. A client cannot remove Knowledge or switch to tool-only RAG.
             body["files"] = [dict(item) for item in meta.get("knowledge", [])]
@@ -114,7 +129,10 @@ class Filter:
         except PiiServiceError:
             self.deny(__user__, request_id, "pii_check_unavailable_blocked")
         if sources:
-            prompt = __metadata__.get("user_prompt", "")
+            try:
+                prompt = (await asyncio.to_thread(self.pii.redact, __metadata__.get("user_prompt", "")))[0]
+            except PiiServiceError:
+                self.deny(__user__, request_id, "pii_check_unavailable_blocked")
             # Open WebUI's add_or_update_user_message(append=False) PREPENDS
             # rather than replaces. Discard the previous unfiltered RAG copy.
             for message in reversed(body["messages"]):
@@ -129,6 +147,25 @@ class Filter:
         # A server-signed context transfers the request ID across OpenAI's
         # metadata stripping step. LiteLLM consumes it before provider routing.
         now = int(time.time())
+        # Only the passages already authorized, reranked and screened above
+        # reach the decision model. The gateway verifies this signed binding,
+        # then consumes the private field before routing to the chat provider.
+        query = __metadata__.get("user_prompt")
+        if not isinstance(query, str):
+            query = next(
+                (m.get("content", "") for m in reversed(body.get("messages", [])) if m.get("role") == "user"),
+                "",
+            )
+            if isinstance(query, list):
+                query = " ".join(p.get("text", "") for p in query if p.get("type") == "text")
+        try:
+            query = (await asyncio.to_thread(self.pii.redact, query))[0]
+        except PiiServiceError:
+            self.deny(__user__, request_id, "pii_check_unavailable_blocked")
+        body["reference_decision_context"] = {
+            "query": query,
+            "passages": [text for source in accepted for text in source["document"]],
+        }
         body["reference_context_token"] = jwt.encode(
             {
                 "sub": __user__["id"],
@@ -137,6 +174,10 @@ class Filter:
                 "iat": now,
                 "exp": now + 300,
                 "quarantined": quarantined,
+                "decision_context_sha256": digest(body["reference_decision_context"]),
+                "messages_sha256": messages_digest(body.get("messages", [])),
+                "corpus_version": __metadata__.get("reference_corpus_version"),
+                "manifest_sha256": __metadata__.get("reference_manifest_sha256"),
             },
             os.environ["REFERENCE_IDENTITY_JWT_SECRET"],
             algorithm="HS256",

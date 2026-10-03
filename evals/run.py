@@ -22,6 +22,9 @@ from secure_rag.guardrails import Guardrails, PiiServiceError, build_pii_redacto
 from secure_rag.retrieval import Retriever, load_glossary
 from secure_rag.service import Answer, RAGService
 
+from ingestion.corpus import release
+from ingestion.store import read_index
+
 CATEGORY_ORDER = (
     "grounded",
     "scope",
@@ -261,6 +264,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    corpus = release(Path("sample-data"))
+    payload, _ = read_index(args.index)
+    if payload["corpus"] != corpus:
+        raise ValueError("Index targets different corpus; rebuild it")
+
     all_cases = [
         json.loads(line) for line in args.cases.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
@@ -298,6 +306,10 @@ def main() -> None:
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         report = render_markdown(summary, baseline, pii_backend=args.pii_backend)
+        report += (
+            f"\nCorpus: `{corpus['corpus_id']}@{corpus['corpus_version']}`. "
+            f"Manifest: `{corpus['manifest_sha256']}`.\n"
+        )
         report += "\n## Reproduction inputs\n\n"
         paths = [args.cases, args.index, Path("sample-data/identity-policy.json"), Path(__file__)]
         paths += sorted(Path("apps/rag-assistant/secure_rag").glob("*.py"))

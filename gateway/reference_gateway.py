@@ -12,6 +12,15 @@ from pathlib import Path
 import jwt
 from fastapi import HTTPException
 from litellm.integrations.custom_logger import CustomLogger
+from secure_rag.decision_guardrails import (
+    POLICY_SHA256,
+    POLICY_VERSION,
+    DecisionClient,
+    DecisionUnavailable,
+    digest,
+    messages_digest,
+    validate_state,
+)
 from secure_rag.guardrails import Guardrails, PiiServiceError
 from secure_rag.presidio_pii import PresidioHttpRedactor
 
@@ -23,6 +32,61 @@ class ReferencePolicy(CustomLogger):
         super().__init__(turn_off_message_logging=True)
         self.pii = PresidioHttpRedactor()
         self.guardrails = Guardrails(pii=self.pii)
+        self.decision_mode = os.environ.get("REFERENCE_DECISION_MODE", "off")
+        if self.decision_mode not in {"off", "shadow"}:
+            raise ValueError("Decision mode must be off or shadow; enforcement is not calibrated")
+        self.decisions = (
+            DecisionClient(os.environ["OPENROUTER_API_KEY"]) if self.decision_mode == "shadow" else None
+        )
+        # Bounded, short-lived private state; never placed in LiteLLM metadata
+        # or logs. Output/failure hooks remove it; TTL also covers abandoned calls.
+        self._decision_contexts = {}
+        self._decision_slots = asyncio.Semaphore(4)
+
+    def record_decision(self, data, event):
+        metadata = data["metadata"]
+        record = {
+            "timestamp": time.time(),
+            "event": "semantic_guardrail",
+            "request_id": metadata["reference_request_id"],
+            "actor_hash": metadata.get("reference_actor_hash", "unknown"),
+            "mode": self.decision_mode,
+            "corpus_version": metadata.get("reference_corpus_version"),
+            "manifest_sha256": metadata.get("reference_manifest_sha256"),
+            **event,
+        }
+        for channel in ("runtime", "audit"):
+            fd = os.open(
+                f"/var/log/reference/{channel}/{channel}.jsonl", os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600
+            )
+            try:
+                os.write(fd, (json.dumps(record) + "\n").encode())
+            finally:
+                os.close(fd)
+
+    async def observe(self, data, stage, state):
+        if self.decisions is None:
+            return
+        try:
+            if state is None:
+                raise DecisionUnavailable("context_unavailable")
+            # Bypass backlog rather than turn optional observations into an
+            # unbounded queue. Calls have a four-second socket timeout, no retry.
+            if self._decision_slots.locked():
+                raise DecisionUnavailable("capacity_limit")
+            async with self._decision_slots:
+                result = await asyncio.to_thread(self.decisions.evaluate, stage, state)
+            event = result.event(stage)
+        except DecisionUnavailable as error:
+            event = {
+                "stage": stage,
+                "status": "unavailable",
+                "reason": str(error),
+                "policy_version": POLICY_VERSION,
+                "policy_sha256": POLICY_SHA256,
+                "would_block": None,
+            }
+        self.record_decision(data, event)
 
     def record(self, data, verdict, outcome):
         metadata = data.setdefault("metadata", {})
@@ -52,6 +116,7 @@ class ReferencePolicy(CustomLogger):
                 os.close(fd)
 
     def deny(self, data, verdict):
+        self._decision_contexts.pop(data.get("metadata", {}).get("reference_request_id"), None)
         self.record(data, verdict, "blocked")
         raise HTTPException(
             400,
@@ -69,6 +134,8 @@ class ReferencePolicy(CustomLogger):
         data["metadata"].pop("reference_actor_hash", None)
         data["metadata"].pop("reference_blocked_role", None)
         data["metadata"].pop("reference_context_quarantined", None)
+        data["metadata"].pop("reference_corpus_version", None)
+        data["metadata"].pop("reference_manifest_sha256", None)
         data["metadata"]["reference_model_alias"] = data.get("model", "unknown")
         if data.get("model") not in {
             "reference-chat",
@@ -113,6 +180,7 @@ class ReferencePolicy(CustomLogger):
             else:
                 self.deny(data, "signed_identity_required")
         context_token = data.pop("reference_context_token", None)
+        decision_context = data.pop("reference_decision_context", None)
         if context_token:
             try:
                 context = jwt.decode(
@@ -124,8 +192,15 @@ class ReferencePolicy(CustomLogger):
                 )
                 if context["sub"] != claims["sub"]:
                     raise ValueError("Identity mismatch")
+                if context.get("decision_context_sha256") or decision_context is not None:
+                    if digest(decision_context) != context.get("decision_context_sha256"):
+                        self.deny(data, "decision_context_mismatch")
+                    if messages_digest(data.get("messages", [])) != context.get("messages_sha256"):
+                        self.deny(data, "decision_messages_mismatch")
                 data["metadata"]["reference_request_id"] = str(uuid.UUID(context["request_id"]))
                 data["metadata"]["reference_context_quarantined"] = bool(context.get("quarantined"))
+                data["metadata"]["reference_corpus_version"] = context.get("corpus_version")
+                data["metadata"]["reference_manifest_sha256"] = context.get("manifest_sha256")
             except (jwt.PyJWTError, KeyError, ValueError, TypeError):
                 self.deny(data, "invalid_rag_policy_context")
         if call_type in {"completion", "acompletion"}:
@@ -153,6 +228,35 @@ class ReferencePolicy(CustomLogger):
                     part["text"] = decision.text
                 if isinstance(content, str):
                     message["content"] = parts[0]["text"]
+            if self.decisions is not None:
+                now = time.monotonic()
+                self._decision_contexts = {
+                    key: item for key, item in self._decision_contexts.items() if now - item[0] < 120
+                }
+                try:
+                    if decision_context is not None:
+                        validate_state(decision_context)
+                        decision_context = {
+                            "query": (await asyncio.to_thread(self.pii.redact, decision_context["query"]))[0],
+                            "passages": [
+                                (await asyncio.to_thread(self.pii.redact, text))[0]
+                                for text in decision_context["passages"]
+                            ],
+                        }
+                    if len(self._decision_contexts) < 128:
+                        await self.observe(data, "input_context", decision_context)
+                        if decision_context is not None:
+                            self._decision_contexts[data["metadata"]["reference_request_id"]] = (
+                                now,
+                                decision_context,
+                            )
+                    else:
+                        await self.observe(data, "input_context", None)
+                except DecisionUnavailable:
+                    # Oversized state is explicit unavailable, never truncated.
+                    await self.observe(data, "input_context", decision_context)
+                except PiiServiceError:
+                    self.deny(data, "pii_check_unavailable_blocked")
         elif call_type in {"embedding", "embeddings", "aembedding", "rerank", "arerank"}:
             # Native RAG ingestion, query embedding and reranking all cross the
             # same boundary. Sanitize text before sending it to the provider.
@@ -174,6 +278,7 @@ class ReferencePolicy(CustomLogger):
         return data
 
     async def async_post_call_success_hook(self, data, user_api_key_dict, response):
+        saved = self._decision_contexts.pop(data.get("metadata", {}).get("reference_request_id"), None)
         system_prompt = " ".join(
             m["content"]
             for m in data.get("messages", [])
@@ -205,6 +310,9 @@ class ReferencePolicy(CustomLogger):
                     if decision.blocked:
                         self.deny(data, decision.verdicts[0])
                     message.content = decision.text
+                    await self.observe(
+                        data, "output", {**saved[1], "answer": decision.text} if saved else None
+                    )
         verdict = (
             "context_injection_quarantined"
             if data.get("metadata", {}).get("reference_context_quarantined")
@@ -216,6 +324,7 @@ class ReferencePolicy(CustomLogger):
     async def async_post_call_failure_hook(
         self, request_data, original_exception, user_api_key_dict, traceback_str=None
     ):
+        self._decision_contexts.pop(request_data.get("metadata", {}).get("reference_request_id"), None)
         # Provider errors can contain input text or internal details. Return a
         # stable error and retain only a verdict in the two event streams.
         if (

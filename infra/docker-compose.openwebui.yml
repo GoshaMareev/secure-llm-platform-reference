@@ -18,6 +18,7 @@ services:
       HOME: /tmp
       OR_SITE_URL: https://github.com/GoshaMareev/secure-llm-platform-reference
       OR_APP_NAME: Secure LLM Platform Reference
+      REFERENCE_DECISION_MODE: ${REFERENCE_DECISION_MODE:-off}
       PRESIDIO_ANALYZER_URL: http://presidio-analyzer:3000
       PRESIDIO_ANONYMIZER_URL: http://presidio-anonymizer:3000
     ports: !override []
@@ -171,6 +172,10 @@ services:
       - ../apps/open-webui/reference_rerank.py:/reference/reference_rerank.py:ro
       - ../scripts/bootstrap_openwebui.py:/reference/bootstrap.py:ro
       - ../scripts/verify_openwebui.py:/reference/verify.py:ro
+      - ../scripts/verify_decisions.py:/reference/verify-decisions.py:ro
+      - ../scripts/evaluate_openwebui.py:/reference/evaluate.py:ro
+      - ../evals:/reference/evals:ro
+      - ../gateway/openrouter-config.yaml:/reference/litellm.yaml:ro
       - ../sample-data:/reference/sample-data:ro
       - webui-data:/app/backend/data
       - webui-audit:/var/log/reference/audit

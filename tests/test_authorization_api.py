@@ -12,9 +12,11 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "apps" / "rag-assistant")]
 
+from secure_rag.api import build_app  # noqa: E402
 from secure_rag.authorization import IdentityPolicy, RetrievalScope  # noqa: E402
 from secure_rag.retrieval import Retriever  # noqa: E402
 
+from ingestion.corpus import fingerprint  # noqa: E402
 from scripts.demo_runtime import ask, demo_settings, running_api  # noqa: E402
 
 QUESTION = {"question": "Who can approve emergency production access?"}
@@ -50,6 +52,21 @@ class AuthorizationApiTests(unittest.TestCase):
             self.assertNotIn("answer", op)
             self.assertNotIn("prompt", au)
             self.assertEqual(op["refused"], au["refused"])
+            self.assertEqual(answer["corpus_version"], "1.0.0")
+            self.assertEqual(
+                au["corpus"], {key: answer[key] for key in ("corpus_id", "corpus_version", "manifest_sha256")}
+            )
+
+    def test_api_cannot_start_with_a_different_release_index(self):
+        payload = json.loads(self.settings.index_path.read_text())
+        payload["corpus"]["corpus_version"] = "2.0.0"
+        payload["corpus"]["manifest_sha256"] = fingerprint(
+            {k: v for k, v in payload["corpus"].items() if k != "manifest_sha256"}
+        )
+        index = Path(self.temporary.name) / "stale.json"
+        index.write_text(json.dumps(payload))
+        with self.assertRaisesRegex(ValueError, "different corpus"):
+            build_app(replace(self.settings, index_path=index))
 
     def test_filter_and_body_identity_cannot_escalate_reader(self):
         status, answer = ask(
