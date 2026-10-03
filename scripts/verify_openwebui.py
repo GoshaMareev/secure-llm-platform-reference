@@ -6,7 +6,9 @@ itself: exercise the two real browser sessions separately.
 """
 
 import argparse
+import hashlib
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -219,21 +221,23 @@ def verify(live):
             and "@" not in json.dumps(response.json())
             and "REDACTED" in json.dumps(response.json()),
         )
+    # Native v2 uses one audit/runtime file per component. Historical v1 files
+    # remain readable, but do not represent the current native event stream.
     audit = [
         json.loads(line)
-        for line in Path("/var/log/reference/audit/gateway.audit.jsonl").read_text().splitlines()
+        for component in ("gateway", "webui")
+        for line in Path(f"/var/log/reference/audit/{component}.audit.jsonl").read_text().splitlines()
     ]
     runtime = [
-        json.loads(line) for line in Path("/var/log/reference/runtime/runtime.jsonl").read_text().splitlines()
+        json.loads(line)
+        for component in ("gateway", "webui")
+        for line in Path(f"/var/log/reference/runtime/{component}.runtime.jsonl").read_text().splitlines()
     ]
     runtime_ids = {event["request_id"] for event in runtime}
-    # ACL-only verification must work before any successful hosted call. The
-    # injection probe above also produces paired native denial records.
     checked = [
         e
         for e in audit
-        if (e["event"] == "rag_access" and e["outcome"] == "blocked")
-        or (e.get("model_alias") == "reference-chat" and e["outcome"] == "allowed")
+        if e.get("event") in {"rag_access", "model_access"} or e.get("model_alias") == "reference-chat"
     ]
     checks.check(
         "separate operational and audit records correlate",
@@ -244,9 +248,14 @@ def verify(live):
         "@" not in json.dumps([audit, runtime])
         and all("prompt" not in e and "answer" not in e for e in [*audit, *runtime]),
     )
-    example = [{k: e[k] for k in ("event", "request_id", "outcome", "verdict")} for e in checked[-1:]]
+    example = [
+        {k: e[k] for k in ("component", "event", "outcome", "verdict") if k in e} for e in checked[-1:]
+    ]
     return {
         "live": live,
+        "source_commit": os.environ.get("REFERENCE_SOURCE_COMMIT", "unrecorded"),
+        "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "correlated_native_events": len(checked),
         "checks": checks.results,
         "passed": sum(r["passed"] for r in checks.results),
         "total": len(checks.results),

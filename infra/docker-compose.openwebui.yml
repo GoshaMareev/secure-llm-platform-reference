@@ -229,6 +229,10 @@ services:
       start_period: 30s
     networks: [platform]
 
+  prometheus:
+    volumes:
+      - ../observability/prometheus/native.yml:/etc/prometheus/prometheus.yml:ro
+
 volumes:
   webui-data:
   webui-audit:

@@ -45,7 +45,7 @@ def call(
 ):
     start = time.monotonic()
     query = (
-        query or f"Which approvers are required for emergency access? Verification nonce synthetic-{index}."
+        query or f"Which approvers are required for emergency access? [verification nonce: {index}]"
     )
     now = int(time.time())
     subject = "verification-user-" + str(index % 8)
@@ -173,6 +173,7 @@ def run(report_path, soak_seconds):
                 "gateway/verification-config.yaml",
                 "gateway/reference_capacity.py",
                 "scripts/mock_model.py",
+                "scripts/verify_fault_load.py",
                 "infra/docker-compose.verification.yml",
             ]
         },

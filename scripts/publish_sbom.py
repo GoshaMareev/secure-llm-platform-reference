@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def publish(source, output):
+def publish(source, output, artifacts=None):
     output.mkdir(parents=True, exist_ok=True)
     images = json.loads((source / "images.json").read_text())
     rows = []
@@ -20,6 +20,7 @@ def publish(source, output):
             continue
         # Syft may embed the source directory in component/property names.
         raw = path.read_text().replace(str(ROOT), "workspace/secure-llm-platform-reference")
+        raw = raw.replace(str(ROOT.parent / "living-portfolio"), "workspace/living-portfolio")
         document = json.loads(raw)
         if document.get("bomFormat") != "CycloneDX":
             raise ValueError("Expected CycloneDX")
@@ -54,6 +55,46 @@ def publish(source, output):
                             ],
                         }
                     )
+        if artifacts and path.name == "application.json":
+            manifest = json.loads(artifacts.read_text())
+            files = [
+                ("asr/" + name, manifest["asr"]["revision"], sha)
+                for name, sha in manifest["asr"]["files"].items()
+            ]
+            files += [
+                ("ocr/" + row["file"], "installed image artifact", row["sha256"]) for row in manifest["ocr"]
+            ]
+            for name, version, sha in files:
+                document.setdefault("components", []).append(
+                    {
+                        "type": "file",
+                        "name": name,
+                        "version": version,
+                        "hashes": [{"alg": "SHA-256", "content": sha}],
+                        "properties": [
+                            {
+                                "name": "reference:provenance",
+                                "value": "verified model/language artifact inventory",
+                            }
+                        ],
+                    }
+                )
+            ru = manifest["russian_pipeline"]
+            document["components"].append(
+                {
+                    "type": "library",
+                    "name": ru["name"],
+                    "version": ru["version"],
+                    "hashes": [{"alg": "SHA-256", "content": ru["wheel_sha256"]}],
+                    "licenses": [{"license": {"id": "MIT"}}],
+                    "properties": [
+                        {
+                            "name": "reference:provenance",
+                            "value": "official Russian wheel checksum verified before install",
+                        }
+                    ],
+                }
+            )
         target = output / path.name
         target.write_text(json.dumps(document, separators=(",", ":")) + "\n")
         for component in document.get("components", []):
@@ -113,5 +154,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--artifacts", type=Path)
     args = parser.parse_args()
-    publish(args.source, args.output)
+    publish(args.source, args.output, args.artifacts)

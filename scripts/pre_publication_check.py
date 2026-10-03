@@ -88,11 +88,17 @@ def scan_text(path: Path, text: str, denylist: tuple[str, ...], *, prefix: str =
     return problems
 
 
+def text_limit(relative: str) -> int:
+    # Explicit bounded inventory directories; every UTF-8 line is still scanned.
+    inventory = re.fullmatch(r"docs/verification/sbom(?:-[0-9a-f]{7,40})?/[^/]+", relative)
+    return 12_000_000 if inventory else MAX_TEXT_BYTES
+
+
 def scan_worktree(denylist: tuple[str, ...]) -> list[str]:
     problems: list[str] = []
     for path in candidate_files():
         # Large, source-reviewed CycloneDX inventories are bounded JSON; still scan every line.
-        limit = 12_000_000 if path.parent == ROOT / "docs/verification/sbom" else MAX_TEXT_BYTES
+        limit = text_limit(path.relative_to(ROOT).as_posix())
         if path.stat().st_size > limit:
             problems.append(f"{path.relative_to(ROOT)}: file exceeds {limit} bytes")
             continue
@@ -131,8 +137,9 @@ def scan_history(denylist: tuple[str, ...]) -> list[str]:
             data = subprocess.run(  # noqa: S603 - no shell; revision validated and path comes from Git
                 [GIT, "show", f"{revision}:{relative}"], cwd=ROOT, check=True, capture_output=True
             ).stdout
-            if len(data) > MAX_TEXT_BYTES:
-                problems.append(f"history:{revision[:12]}:{relative}: file exceeds {MAX_TEXT_BYTES} bytes")
+            limit = text_limit(relative)
+            if len(data) > limit:
+                problems.append(f"history:{revision[:12]}:{relative}: file exceeds {limit} bytes")
                 continue
             if b"\0" in data:
                 problems.append(f"history:{revision[:12]}:{relative}: binary file requires manual review")
