@@ -1,0 +1,51 @@
+{
+  "source_commit": "4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e",
+  "profile": "isolated synthetic verification; no provider credentials",
+  "checks": [
+    {
+      "check": "presidio-analyzer unavailable",
+      "status": 400,
+      "code": "pii_check_unavailable_blocked",
+      "passed": true
+    },
+    {
+      "check": "presidio-anonymizer unavailable",
+      "status": 400,
+      "code": "pii_check_unavailable_blocked",
+      "passed": true
+    },
+    {
+      "check": "OCR/STT inspector unavailable",
+      "status": 400,
+      "code": "media_check_unavailable",
+      "passed": true
+    },
+    {
+      "check": "mandatory reranker unavailable",
+      "status": 400,
+      "has_answer": false,
+      "passed": true
+    },
+    {
+      "check": "audit spool exhausted",
+      "status": 503,
+      "code": "audit_unavailable",
+      "passed": true
+    },
+    {
+      "check": "gateway process restart recovery",
+      "passed": true
+    },
+    {
+      "check": "client disconnect releases joined capacity",
+      "passed": true
+    },
+    {
+      "check": "mixed synthetic identities bounded/no known PII",
+      "passed": true,
+      "requests": 80,
+      "note": "Known-marker check; ownership tested separately by fingerprint suite."
+    }
+  ],
+  "accepted": true
+}

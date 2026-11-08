@@ -1,0 +1,53 @@
+{
+  "live": true,
+  "passed": 6,
+  "total": 6,
+  "checks": [
+    {
+      "check": "image-email",
+      "http_status": 400,
+      "verdict": "image_sensitive_text_blocked",
+      "passed": true
+    },
+    {
+      "check": "image-injection",
+      "http_status": 400,
+      "verdict": "media_injection_blocked",
+      "passed": true
+    },
+    {
+      "check": "audio-email",
+      "http_status": 400,
+      "verdict": "audio_sensitive_text_unresolved",
+      "passed": true
+    },
+    {
+      "check": "audio-injection",
+      "http_status": 400,
+      "verdict": "media_injection_blocked",
+      "passed": true
+    },
+    {
+      "check": "image-policy",
+      "http_status": 200,
+      "verdict": "image_text_checked",
+      "passed": true
+    },
+    {
+      "check": "audio-benign",
+      "http_status": 200,
+      "verdict": "audio_transcript_checked",
+      "passed": true
+    }
+  ],
+  "source_commit": "4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e",
+  "runner_sha256": "cc3d67c6a52220fa1d1a77f71c02eb95f110f3ad38d5dc54024f0802edbe2fb7",
+  "budget": {
+    "task": "media",
+    "cost_usd": 0.00230858,
+    "total_used_usd": 0.206451706,
+    "run_limit_usd": 1,
+    "stopped_by_budget": false,
+    "exit_code": 0
+  }
+}

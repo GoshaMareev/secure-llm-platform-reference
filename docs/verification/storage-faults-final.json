@@ -1,0 +1,21 @@
+{
+  "source_commit": "b0cd0d7156aba7a4868728a38a3449fed53c8480",
+  "checks": [
+    {
+      "check": "operational disk write permission failure",
+      "status": 200,
+      "code": null,
+      "health": "degraded",
+      "passed": true
+    },
+    {
+      "check": "audit disk write permission failure",
+      "status": 503,
+      "code": "audit_unavailable",
+      "health": "degraded",
+      "passed": true
+    }
+  ],
+  "accepted": true,
+  "scope": "Permission failures on actual disk files; quota exhaustion in separate service suite; ENOSPC/fsync failure unit injection."
+}

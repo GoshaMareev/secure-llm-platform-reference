@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Secure LLM Platform · Reference workspace</title>
+    <link rel="stylesheet" href="/demo-assets/workspace.css" />
+    <script src="/demo-assets/workspace.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#question">Skip to question</a>
+    <div class="workspace">
+      <aside class="sidebar" aria-label="Workspace and access">
+        <a class="brand" href="/" aria-label="Secure LLM Platform home"
+          ><span class="brand-mark" aria-hidden="true">S</span
+          ><span
+            >Secure LLM<span class="brand-sub">Platform reference</span></span
+          ></a
+        >
+        <div class="sidebar-section">
+          <p class="eyebrow">Your workspace</p>
+          <div class="workspace-item">
+            <span aria-hidden="true">◈</span> Knowledge assistant
+            <span class="small-tag">DEMO</span>
+          </div>
+        </div>
+        <section class="access-card" aria-labelledby="access-title">
+          <p class="eyebrow" id="access-title">Current access</p>
+          <div class="role-row">
+            <span class="avatar" aria-hidden="true" id="role-icon">…</span>
+            <div>
+              <strong id="role">Checking session</strong
+              ><span id="auth-mode" class="muted">Reading server policy</span>
+            </div>
+          </div>
+          <div class="audiences" id="audiences"></div>
+          <p id="access-note" class="access-note">
+            Access is assigned by the platform.
+          </p>
+          <a
+            id="account-action"
+            href="/oauth2/sign_out?rd=/"
+            class="account-action"
+            hidden
+            >Switch account ↗</a
+          >
+        </section>
+        <div class="sidebar-bottom">
+          <p class="eyebrow">Explore the implementation</p>
+          <a
+            href="https://github.com/GoshaMareev/secure-llm-platform-reference/tree/portfolio/secure-llm-platform"
+            target="_blank"
+            rel="noreferrer"
+            >Code & architecture ↗</a
+          >
+          <a
+            href="https://github.com/GoshaMareev/secure-llm-platform-reference/blob/portfolio/secure-llm-platform/docs/google-sso-validation.md"
+            target="_blank"
+            rel="noreferrer"
+            >Verification report ↗</a
+          >
+          <a href="/docs">API documentation ↗</a>
+          <p class="sidebar-footnote">
+            Fictional documents. Real access decisions.
+          </p>
+        </div>
+      </aside>
+      <main>
+        <header class="topbar">
+          <span>REFERENCE / KNOWLEDGE WORKSPACE</span
+          ><span class="environment"
+            ><span class="status-dot" aria-hidden="true"></span> Synthetic
+            knowledge</span
+          >
+        </header>
+        <div class="main-content">
+          <section class="intro">
+            <p class="eyebrow accent">A controlled path to knowledge</p>
+            <h1>
+              Ask with evidence.<br /><span>Stay within your access.</span>
+            </h1>
+            <p class="intro-copy">
+              Explore an answer, a refusal, and a protected boundary — with the
+              sources and decisions visible.
+            </p>
+            <div class="flow" aria-label="Request path">
+              <span>Identity</span><i aria-hidden="true">→</i
+              ><span>Scoped retrieval</span><i aria-hidden="true">→</i
+              ><span id="guardrails-label">Checking policy</span
+              ><i aria-hidden="true">→</i
+              ><span id="gateway-label">Checking gateway</span>
+            </div>
+          </section>
+          <section class="question-panel" aria-labelledby="question-heading">
+            <div class="panel-heading">
+              <h2 id="question-heading">Try a scenario</h2>
+              <span>01 / ASK</span>
+            </div>
+            <div
+              class="scenario-grid"
+              role="group"
+              aria-label="Example questions"
+            >
+              <button
+                type="button"
+                class="scenario selected"
+                data-scenario="access"
+                aria-pressed="true"
+              >
+                <span>Production access</span
+                ><small>Compare engineer & reader</small>
+              </button>
+              <button
+                type="button"
+                class="scenario"
+                data-scenario="public"
+                aria-pressed="false"
+              >
+                <span>Public policy</span><small>Available to both roles</small>
+              </button>
+              <button
+                type="button"
+                class="scenario"
+                data-scenario="unsupported"
+                aria-pressed="false"
+              >
+                <span>No evidence</span
+                ><small>A question outside the corpus</small>
+              </button>
+              <button
+                type="button"
+                class="scenario"
+                data-scenario="injection"
+                aria-pressed="false"
+              >
+                <span>Prompt injection</span
+                ><small>A request the policy blocks</small>
+              </button>
+              <button
+                type="button"
+                class="scenario"
+                data-scenario="restricted"
+                aria-pressed="false"
+              >
+                <span>Restricted scope</span
+                ><small>Attempt to expand reader access</small>
+              </button>
+            </div>
+            <form id="ask-form">
+              <label for="question">Your question</label>
+              <textarea
+                id="question"
+                name="question"
+                rows="3"
+                minlength="3"
+                maxlength="4000"
+                required
+              >
+Who can approve emergency production access?</textarea
+              >
+              <div class="composer-footer">
+                <span id="scenario-note"
+                  >Ask the same question from each account to compare
+                  access.</span
+                ><button
+                  class="primary-button"
+                  id="submit"
+                  type="submit"
+                  disabled
+                >
+                  Ask the assistant <span aria-hidden="true">↗</span>
+                </button>
+              </div>
+            </form>
+            <details class="request-details">
+              <summary>Request details</summary>
+              <pre id="request-preview"></pre>
+              <p>These caller-supplied fields cannot grant document access.</p>
+            </details>
+          </section>
+          <section
+            class="result-panel"
+            aria-labelledby="result-heading"
+            aria-busy="false"
+            id="result-panel"
+          >
+            <div class="panel-heading">
+              <h2 id="result-heading" tabindex="-1">Answer & evidence</h2>
+              <span>02 / INSPECT</span>
+            </div>
+            <div id="empty-result" class="empty-result">
+              <span class="empty-mark" aria-hidden="true">↳</span>
+              <div>
+                <h3>A decision you can inspect.</h3>
+                <p>Your answer, sources and request ID will appear here.</p>
+              </div>
+            </div>
+            <p
+              id="request-status"
+              class="request-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <div id="result" hidden>
+              <div class="result-heading">
+                <span id="result-badge" class="result-badge"></span
+                ><span id="evidence-label" class="muted"></span>
+              </div>
+              <p id="answer" class="answer"></p>
+              <p id="outcome-note" class="outcome-note"></p>
+              <div class="sources-section">
+                <h3>Sources</h3>
+                <div id="sources" class="sources"></div>
+                <p id="no-sources" class="muted" hidden>
+                  No sources disclosed for this response.
+                </p>
+              </div>
+              <div id="control-section" class="control-section" hidden>
+                <h3>Observed controls</h3>
+                <ul id="controls"></ul>
+              </div>
+              <div id="request-id-row" class="request-id-row" hidden>
+                <div>
+                  <span class="eyebrow">Request ID</span
+                  ><code id="request-id"></code>
+                </div>
+                <button id="copy-id" class="secondary-button" type="button">
+                  Copy ID
+                </button>
+              </div>
+              <p id="correlation-note" class="correlation-note" hidden>
+                Use this ID to correlate the separate operational and audit
+                records.
+              </p>
+            </div>
+          </section>
+          <footer class="main-footer">
+            <span id="mode-note"
+              >Reference mode · Synthetic documents · Checking server
+              configuration</span
+            ><span>Access follows identity.</span>
+          </footer>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

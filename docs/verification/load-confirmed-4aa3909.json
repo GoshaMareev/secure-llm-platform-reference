@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "source_commit": "4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e",
+  "profile": "isolated verification; synthetic upstream only",
+  "deadline_seconds": {
+    "text": 60,
+    "media": 120
+  },
+  "capacity": {
+    "chat": 4,
+    "media": 1
+  },
+  "configuration_sha256": {
+    "gateway/verification-config.yaml": "f58c9f2daf86c70ec2ce60642008fbc600008e0fb121672a62119e150aff0d16",
+    "gateway/reference_capacity.py": "c7c5123ef2f117ade291838370a1058500bbdcd3e3291bf284441004c0251622",
+    "scripts/mock_model.py": "01d8a70f53fdafe8c9370fcfca20f32285370a86ac6eaf2a49a91657f49e5b30",
+    "scripts/verify_fault_load.py": "e92c657f2b2ee08eddd54542490c828859fabe846c06c0575b2dfbefd41987b9",
+    "infra/docker-compose.verification.yml": "c8701784fd3985e3906ab281935296dfd1a26d3e07a4bc883b6157fa5451f952"
+  },
+  "faults": [
+    {
+      "status": 502,
+      "latency_ms": 166.95,
+      "code": "model_request_failed",
+      "raw_pii": false,
+      "has_answer": false,
+      "correlated_error": true,
+      "response_owned": true,
+      "scenario": "429",
+      "passed": true
+    },
+    {
+      "status": 502,
+      "latency_ms": 139.77,
+      "code": "model_request_failed",
+      "raw_pii": false,
+      "has_answer": false,
+      "correlated_error": true,
+      "response_owned": true,
+      "scenario": "500",
+      "passed": true
+    },
+    {
+      "status": 502,
+      "latency_ms": 143.94,
+      "code": "model_request_failed",
+      "raw_pii": false,
+      "has_answer": false,
+      "correlated_error": true,
+      "response_owned": true,
+      "scenario": "503",
+      "passed": true
+    },
+    {
+      "status": 502,
+      "latency_ms": 40.45,
+      "code": "model_request_failed",
+      "raw_pii": false,
+      "has_answer": false,
+      "correlated_error": true,
+      "response_owned": true,
+      "scenario": "disconnect",
+      "passed": true
+    },
+    {
+      "status": 502,
+      "latency_ms": 135.67,
+      "code": "model_request_failed",
+      "raw_pii": false,
+      "has_answer": false,
+      "correlated_error": true,
+      "response_owned": true,
+      "scenario": "invalid_json",
+      "passed": true
+    },
+    {
+      "status": 400,
+      "latency_ms": 302.06,
+      "code": "pii_check_unavailable_blocked",
+      "raw_pii": false,
+      "has_answer": false,
+      "correlated_error": true,
+      "response_owned": true,
+      "scenario": "large_response",
+      "passed": true
+    },
+    {
+      "status": 502,
+      "latency_ms": 45054.38,
+      "code": "model_request_failed",
+      "raw_pii": false,
+      "has_answer": false,
+      "correlated_error": true,
+      "response_owned": true,
+      "scenario": "timeout",
+      "passed": true
+    },
+    {
+      "status": 400,
+      "latency_ms": 9.63,
+      "code": "signed_identity_required",
+      "raw_pii": false,
+      "has_answer": false,
+      "correlated_error": true,
+      "response_owned": true,
+      "scenario": "expired_identity",
+      "passed": true
+    },
+    {
+      "status": 400,
+      "latency_ms": 9.36,
+      "code": "invalid_rag_policy_context",
+      "raw_pii": false,
+      "has_answer": false,
+      "correlated_error": true,
+      "response_owned": true,
+      "scenario": "mismatched_context",
+      "passed": true
+    },
+    {
+      "status": 400,
+      "latency_ms": 7.48,
+      "code": "input_injection_blocked",
+      "raw_pii": false,
+      "has_answer": false,
+      "correlated_error": true,
+      "response_owned": true,
+      "scenario": "input_injection",
+      "passed": true
+    }
+  ],
+  "load": [
+    {
+      "requests": 100,
+      "seconds": 13.95,
+      "p50_ms": 137.87,
+      "p95_ms": 151.26,
+      "accepted_p95_ms": 151.26,
+      "throughput_rps": 7.169,
+      "accepted_throughput_rps": 7.169,
+      "successful": 100,
+      "overload_429": 0,
+      "error_rate": 0.0,
+      "privacy_failures": 0,
+      "ownership_failures": 0,
+      "concurrency": 1
+    },
+    {
+      "requests": 100,
+      "seconds": 6.999,
+      "p50_ms": 137.19,
+      "p95_ms": 153.87,
+      "accepted_p95_ms": 153.87,
+      "throughput_rps": 14.289,
+      "accepted_throughput_rps": 14.289,
+      "successful": 100,
+      "overload_429": 0,
+      "error_rate": 0.0,
+      "privacy_failures": 0,
+      "ownership_failures": 0,
+      "concurrency": 2
+    },
+    {
+      "requests": 100,
+      "seconds": 3.741,
+      "p50_ms": 146.96,
+      "p95_ms": 166.24,
+      "accepted_p95_ms": 166.24,
+      "throughput_rps": 26.728,
+      "accepted_throughput_rps": 26.728,
+      "successful": 100,
+      "overload_429": 0,
+      "error_rate": 0.0,
+      "privacy_failures": 0,
+      "ownership_failures": 0,
+      "concurrency": 4
+    },
+    {
+      "requests": 100,
+      "seconds": 0.169,
+      "p50_ms": 2.85,
+      "p95_ms": 8.22,
+      "accepted_p95_ms": 167.33,
+      "throughput_rps": 591.729,
+      "accepted_throughput_rps": 23.669,
+      "successful": 4,
+      "overload_429": 96,
+      "error_rate": 0.0,
+      "privacy_failures": 0,
+      "ownership_failures": 0,
+      "concurrency": 8
+    }
+  ],
+  "soak": {
+    "requests": 14916,
+    "seconds": 600.163,
+    "p50_ms": 150.44,
+    "p95_ms": 168.76,
+    "accepted_p95_ms": 168.76,
+    "throughput_rps": 24.853,
+    "accepted_throughput_rps": 24.853,
+    "successful": 14916,
+    "overload_429": 0,
+    "error_rate": 0.0,
+    "privacy_failures": 0,
+    "ownership_failures": 0,
+    "concurrency": 4
+  },
+  "resources": [
+    {
+      "Name": "portfolio-verification-test-model-1",
+      "CPUPerc": "0.01%",
+      "MemUsage": "19.04MiB / 7.748GiB",
+      "PIDs": "1"
+    },
+    {
+      "Name": "portfolio-verification-presidio-analyzer-1",
+      "CPUPerc": "0.01%",
+      "MemUsage": "1.052GiB / 7.748GiB",
+      "PIDs": "10"
+    },
+    {
+      "Name": "portfolio-verification-open-webui-1",
+      "CPUPerc": "0.25%",
+      "MemUsage": "192.2MiB / 7.748GiB",
+      "PIDs": "17"
+    },
+    {
+      "Name": "portfolio-verification-litellm-1",
+      "CPUPerc": "0.08%",
+      "MemUsage": "598.8MiB / 7.748GiB",
+      "PIDs": "10"
+    },
+    {
+      "Name": "portfolio-verification-webui-postgres-1",
+      "CPUPerc": "0.33%",
+      "MemUsage": "34.33MiB / 7.748GiB",
+      "PIDs": "8"
+    },
+    {
+      "Name": "portfolio-verification-presidio-anonymizer-1",
+      "CPUPerc": "0.01%",
+      "MemUsage": "52.36MiB / 7.748GiB",
+      "PIDs": "3"
+    },
+    {
+      "Name": "portfolio-verification-media-inspector-1",
+      "CPUPerc": "17.65%",
+      "MemUsage": "405.8MiB / 1.5GiB",
+      "PIDs": "5"
+    }
+  ],
+  "accepted": true,
+  "harness_commit": "63f1b26",
+  "measurement_note": "Unique nonce format independently checked against real Presidio for all 100 values; historical rejected ownership trial retained."
+}

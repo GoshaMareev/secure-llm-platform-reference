@@ -1,0 +1,161 @@
+{
+  "syft_version": "1.54.0",
+  "format": "CycloneDX JSON",
+  "inventories": [
+    {
+      "file": "application.json",
+      "sha256": "c3197ddbff71afa14640405198919e4f82706007c3ba4cac06242af8ffbd56cf",
+      "components": 57,
+      "image": null
+    },
+    {
+      "file": "container-0.json",
+      "sha256": "dad90ca99575117abf66364606e5bdc408f845eb51936eb3296e700b6fb2b15a",
+      "components": 3947,
+      "image": {
+        "component": [
+          "verification",
+          "litellm"
+        ],
+        "container": "portfolio-verification-litellm-1",
+        "image_id": "sha256:f63fb81b831b170ec16851e23c36ac5bf52ef106b271406429524a2ed730bbfd",
+        "image": "ghcr.io/berriai/litellm@sha256:f63fb81b831b170ec16851e23c36ac5bf52ef106b271406429524a2ed730bbfd"
+      }
+    },
+    {
+      "file": "container-1.json",
+      "sha256": "eb3c1c95e44f26d148bc1e0aeb4d32fbfb583fbd81d1f270fcde89ecde082960",
+      "components": 4085,
+      "image": {
+        "component": [
+          "open",
+          "webui"
+        ],
+        "container": "portfolio-verification-open-webui-1",
+        "image_id": "sha256:0487ad4a5a4b986062dedace806c3ef1e88fec38c10d1e64d6a5501c66671e5e",
+        "image": "ghcr.io/open-webui/open-webui:v0.11.4-slim@sha256:0487ad4a5a4b986062dedace806c3ef1e88fec38c10d1e64d6a5501c66671e5e"
+      }
+    },
+    {
+      "file": "container-10.json",
+      "sha256": "f4cf64a22efefd2886b260a79f40512728a53610d63d33e19d04d5e2fa19ea46",
+      "components": 343,
+      "image": {
+        "component": "prometheus",
+        "image": "prom/prometheus:v2.54.1@sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94",
+        "image_id": "sha256:f6639335d34a77d9d9db382b92eeb7fc00934be8eae81dbc03b31cfe90411a94"
+      }
+    },
+    {
+      "file": "container-2.json",
+      "sha256": "9b612db5226426e9e3547cf4daf4b28e3e282bf99850fd1a9ae880ccd585f0a9",
+      "components": 3496,
+      "image": {
+        "component": [
+          "media",
+          "inspector"
+        ],
+        "container": "portfolio-verification-media-inspector-1",
+        "image_id": "sha256:d21628b19a47f30c1d41665943f3c6a474bb795681d936c7b6da43972c718237",
+        "image": "portfolio-verification-media-inspector"
+      }
+    },
+    {
+      "file": "container-3.json",
+      "sha256": "f30cc6927fb669274d54aa5287bcc6e0927936e65482121b381cabf733c079a1",
+      "components": 4159,
+      "image": {
+        "component": [
+          "presidio",
+          "analyzer"
+        ],
+        "container": "portfolio-verification-presidio-analyzer-1",
+        "image_id": "sha256:c4edbc8c3f8f1dda54950b7f6374179a433e735084db98e45c9592def897425b",
+        "image": "reference-presidio:en-ru-3.8.0"
+      }
+    },
+    {
+      "file": "container-4.json",
+      "sha256": "63eeff33c2c01736e194e14ce1611d9434eb37e693adc67b0d9e1454385ded4b",
+      "components": 4476,
+      "image": {
+        "component": [
+          "presidio",
+          "anonymizer"
+        ],
+        "container": "portfolio-verification-presidio-anonymizer-1",
+        "image_id": "sha256:e567013893ebc80994e3799f6f55c86aa1f0b0fadb779571ab346f0ec45365c1",
+        "image": "ghcr.io/data-privacy-stack/presidio-anonymizer@sha256:e567013893ebc80994e3799f6f55c86aa1f0b0fadb779571ab346f0ec45365c1"
+      }
+    },
+    {
+      "file": "container-5.json",
+      "sha256": "49ab9f13a8d1c028ac751cc9b8571c7b55a6cc31f9280f149a61bc878d597f19",
+      "components": 7752,
+      "image": {
+        "component": [
+          "webui",
+          "postgres"
+        ],
+        "container": "portfolio-verification-webui-postgres-1",
+        "image_id": "sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f",
+        "image": "pgvector/pgvector:0.8.6-pg17-bookworm@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f"
+      }
+    },
+    {
+      "file": "container-6.json",
+      "sha256": "a141612168ceab2cde3910b0f1804a9591f5d86e80a0abe50a6743dee4b0c368",
+      "components": 2747,
+      "image": {
+        "component": [
+          "audit",
+          "collector"
+        ],
+        "container": "secure-llm-platform-reference-audit-collector-1",
+        "image_id": "sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea",
+        "image": "python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea"
+      }
+    },
+    {
+      "file": "container-7.json",
+      "sha256": "c31b677e9c5fb57a21ca90c9aae80cbe962460432d1b94aad4dc0a9528972b7b",
+      "components": 1328,
+      "image": {
+        "component": "fluent-bit",
+        "image": "fluent/fluent-bit:3.1.9@sha256:4af3920cc2ff976200e0fc09f23e7ca4ee7d4477a6d592cb496fc39378181b02",
+        "image_id": "sha256:4af3920cc2ff976200e0fc09f23e7ca4ee7d4477a6d592cb496fc39378181b02"
+      }
+    },
+    {
+      "file": "container-8.json",
+      "sha256": "ca4c45dc143da03f6b19c87955cf82710cae163eace76996e1edb619b6ae343d",
+      "components": 499,
+      "image": {
+        "component": "loki",
+        "image": "grafana/loki:3.1.1@sha256:e689cc634841c937de4d7ea6157f17e29cf257d6a320f1c293ab18d46cfea986",
+        "image_id": "sha256:e689cc634841c937de4d7ea6157f17e29cf257d6a320f1c293ab18d46cfea986"
+      }
+    },
+    {
+      "file": "container-9.json",
+      "sha256": "e18e858876b6af422388603a0c1df038b3e62b7fef2d4205f71b5a82f2ad556b",
+      "components": 1003,
+      "image": {
+        "component": "oauth2-proxy",
+        "image": "quay.io/oauth2-proxy/oauth2-proxy:v7.15.2@sha256:aa0bd8dd5ab0c78e4c91c92755ad573a5f92241f88138b4141b8ec803463b4fd",
+        "image_id": "sha256:aa0bd8dd5ab0c78e4c91c92755ad573a5f92241f88138b4141b8ec803463b4fd"
+      }
+    },
+    {
+      "file": "site-application.json",
+      "sha256": "6cc16f21732d7dcd491f38ab7a69a1a074d7786693046f7325bb48c3662253e0",
+      "components": 78,
+      "image": null
+    }
+  ],
+  "license_review": {
+    "total_components": 33970,
+    "unconfirmed": 32586,
+    "scope": "Metadata inventory; UNCONFIRMED means license evidence is absent, not permission to redistribute."
+  }
+}

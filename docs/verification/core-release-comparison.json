@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "old_manifest_sha256": "ab9a6d03e213acebddd373a247fc664cf13708b4a9ee3bf8da909b6be9ecfd44",
+  "new_manifest_sha256": "3db86a97a0d539ac8d71457debe5ab0d463d29fcf36ee1e9261f53acd41a1873",
+  "old_passed": 20,
+  "new_passed": 32,
+  "case_ids_unchanged": true,
+  "regressions": []
+}

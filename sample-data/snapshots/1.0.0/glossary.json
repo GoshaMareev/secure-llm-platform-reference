@@ -1,0 +1,9 @@
+{
+  "emergency": ["break-glass", "incident"],
+  "outage": ["incident", "degradation"],
+  "llm": ["model", "inference"],
+  "production": ["platform", "service"],
+  "choose": ["accept", "select"],
+  "user": ["end-user"],
+  "provider": ["model"]
+}

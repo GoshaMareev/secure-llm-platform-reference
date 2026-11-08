@@ -1,0 +1,21 @@
+# Requires Compose >= 2.24.4 for !override. Use with the base Compose file.
+services:
+  oauth2-proxy:
+    # Replace every Entra variable, including its group and domain policy.
+    environment: !override
+      OAUTH2_PROXY_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:?Run scripts/google_sso.py init first}
+    command: ["--config", "/etc/oauth2-proxy/google.cfg"]
+    user: "${GOOGLE_SSO_UID:?Run scripts/google_sso.py init first}:${GOOGLE_SSO_GID:?Run scripts/google_sso.py init first}"
+    volumes:
+      - ./oauth2-proxy-google.cfg:/etc/oauth2-proxy/google.cfg:ro
+    secrets: [google-client-secret, google-cookie-secret, google-allowed-emails]
+
+secrets:
+  identity-policy:
+    file: ${GOOGLE_SSO_DIR:?Run scripts/google_sso.py init first}/identity-policy.json
+  google-client-secret:
+    file: ${GOOGLE_SSO_DIR:?Run scripts/google_sso.py init first}/client-secret
+  google-cookie-secret:
+    file: ${GOOGLE_SSO_DIR:?Run scripts/google_sso.py init first}/cookie-secret
+  google-allowed-emails:
+    file: ${GOOGLE_SSO_DIR:?Run scripts/google_sso.py init first}/allowed-emails

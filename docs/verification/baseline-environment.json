@@ -1,0 +1,26 @@
+{
+  "commit": "0f47fa20d1ce291a5b43ef823513211faf86930d",
+  "machine": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "cpu": "Apple M1 Pro",
+    "logical_cpus": 8,
+    "memory_bytes": 17179869184
+  },
+  "report_hashes": {
+    "media-evaluation.json": "532d5feab5dbf0a625e6f82b94460614a32a9d7807c41c6bd645af5552a8288b",
+    "rag-quality-native.json": "26b177013c0de4fa018dda8ff9c772dc111d6c5a9863e1ba887479e0fe3615e1",
+    "decision-evaluation-jev.md": "f2d420d0c2893cfb94b2f7813a44ecc25e4b46f8ffcde1e722b703da502b035e",
+    "decision-evaluation-jev.json": "7aa9af232126ca09bb39e5b73fa20b896cc98ba2976659d121b6d9bf5f30b5ce",
+    "rag-quality-offline.json": "7961af816ad43f95c323e777c986f4802561582c611ba59e30b3bc4b3c2d41eb",
+    "media-native-evaluation.json": "dc50a4889db45010b6e54a7ba49190ba519e79e7ae1b0faab6a648bbbb59f35c",
+    "rag-quality-offline.md": "2c52e45f5610363a77f24fd3d0d9dfcd49dc2f8e91aef4e162744da2e74e3afa",
+    "rag-quality-native.md": "2fe059b633aa6507f78986474c6c762104d126d4274db59140c5187934341d23"
+  },
+  "docker_resources": {
+    "Architecture": "aarch64",
+    "NCPU": 8,
+    "MemTotal": 8319770624
+  },
+  "publication_note": "Only benchmark-relevant resources are retained. Host release, Docker version and the unscoped local image inventory are omitted; project image provenance is recorded in the scoped SBOMs."
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "transport": "HTTPS TLS1.2+ with mandatory client certificates",
+  "events_added": 20,
+  "checks": [
+    {
+      "check": "collector outage preserves local committed events",
+      "passed": true
+    },
+    {
+      "check": "all 20 events delivered after recovery and rotation",
+      "passed": true
+    },
+    {
+      "check": "lost checkpoint/restart/repeated delivery creates no duplicates",
+      "passed": true
+    },
+    {
+      "check": "untrusted/missing client certificate rejected",
+      "passed": true
+    }
+  ],
+  "accepted": true,
+  "additional_unit_evidence": [
+    "lost acknowledgement replay",
+    "event ID collision rejection",
+    "fsync failure blocks successful acknowledgement",
+    "spool capacity rejection",
+    "active-file inode changes during rotation"
+  ],
+  "runtime_commit": "4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e"
+}

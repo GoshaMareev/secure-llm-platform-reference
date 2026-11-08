@@ -1,0 +1,49 @@
+{
+  "live": true,
+  "passed": 6,
+  "total": 6,
+  "checks": [
+    {
+      "check": "image-email",
+      "http_status": 400,
+      "verdict": "image_sensitive_text_blocked",
+      "request_id": "e26ddba3-37ee-40f9-a854-181fbec53e21",
+      "passed": true
+    },
+    {
+      "check": "image-injection",
+      "http_status": 400,
+      "verdict": "media_injection_blocked",
+      "request_id": "4156792a-3841-4421-bd92-d0c74296843a",
+      "passed": true
+    },
+    {
+      "check": "audio-email",
+      "http_status": 400,
+      "verdict": "audio_sensitive_text_unresolved",
+      "request_id": "5287d030-113b-430c-880a-fe43fde64dc2",
+      "passed": true
+    },
+    {
+      "check": "audio-injection",
+      "http_status": 400,
+      "verdict": "media_injection_blocked",
+      "request_id": "63b6855d-7936-470f-96fa-ebc516c25002",
+      "passed": true
+    },
+    {
+      "check": "image-policy",
+      "http_status": 200,
+      "verdict": "image_text_checked",
+      "request_id": "8834f133-32b2-4cef-a375-071182d76358",
+      "passed": true
+    },
+    {
+      "check": "audio-benign",
+      "http_status": 200,
+      "verdict": "audio_transcript_checked",
+      "request_id": "f4645bc6-afe8-4764-a08e-5797c9b359ee",
+      "passed": true
+    }
+  ]
+}

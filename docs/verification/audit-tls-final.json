@@ -1,0 +1,13 @@
+{
+  "checks": {
+    "wrong_certificate_rejected": true,
+    "wrong_certificate_reason": "TLSV1_ALERT_UNKNOWN_CA",
+    "discarded_ack_response": 200,
+    "retry_durable": true
+  },
+  "deduplicated_rows": 1,
+  "accepted": true,
+  "runtime_commit": "4aa3909b5d34941353f13bdfea5e9fd2e8d4ad1e",
+  "harness_commit": "5ddb27030eaa0ebd904f1b007dec0742227c62d8",
+  "policy": "native audit contract v2, mandatory private mTLS collector"
+}
